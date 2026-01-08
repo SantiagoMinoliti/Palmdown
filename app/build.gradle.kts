@@ -53,15 +53,17 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
 
-    // Jetpack Compose
+    // Jetpack
     implementation(platform("androidx.compose:compose-bom:2025.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.12.2")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation(libs.navigation.fragment.ktx)
     implementation(libs.navigation.ui.ktx)
     debugImplementation("androidx.compose.ui:ui-tooling")
+
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
