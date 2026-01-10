@@ -14,6 +14,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.palmdown.ui.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
+import com.example.palmdown.ui.main.NewsScreen
+
 
 class MainActivity : ComponentActivity() {
 
@@ -96,11 +98,6 @@ private fun BottomBar(navController: androidx.navigation.NavHostController) {
 @Composable
 private fun NotesScreen() {
     Text("Notes Screen")
-}
-
-@Composable
-private fun NewsScreen() {
-    Text("News Screen")
 }
 
 @Composable
