@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.palmdown.model.News
 import com.example.palmdown.repository.NewsRepository
+import com.example.palmdown.utils.DateUtils
 
 @Composable
 fun NewsScreen() {
@@ -49,24 +50,18 @@ fun NewsScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         when {
-            isLoading -> {
-                CircularProgressIndicator()
-            }
+            isLoading -> CircularProgressIndicator()
 
-            errorMessage != null -> {
-                Text(
-                    text = "Errore nel caricamento news",
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
+            errorMessage != null -> Text(
+                text = "Errore nel caricamento news",
+                color = MaterialTheme.colorScheme.error
+            )
 
-            else -> {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(newsList) { news ->
-                        NewsCard(news)
-                    }
+            else -> LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(newsList) { news ->
+                    NewsCard(news)
                 }
             }
         }
@@ -82,13 +77,9 @@ private fun NewsCard(news: News) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-
                 val url = news.url.trim()
                 if (url.isBlank()) return@clickable
-
-                val finalUrl =
-                    if (url.startsWith("http")) url else "https://$url"
-
+                val finalUrl = if (url.startsWith("http")) url else "https://$url"
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl))
                 if (intent.resolveActivity(context.packageManager) != null) {
                     context.startActivity(intent)
@@ -118,7 +109,7 @@ private fun NewsCard(news: News) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = news.date?.toString() ?: "",
+                    text = DateUtils.formatDate(news.date),
                     style = MaterialTheme.typography.labelSmall
                 )
                 Text(
