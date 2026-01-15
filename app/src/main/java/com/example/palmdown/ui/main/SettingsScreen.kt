@@ -4,18 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
 fun SettingsScreen(
@@ -24,145 +21,157 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsState()
 
-    var keywordInput by rememberSaveable { mutableStateOf("") }
-    var languageSearch by rememberSaveable { mutableStateOf("") }
-    var languagesExpanded by rememberSaveable { mutableStateOf(false) }
+    var keywordInput by remember { mutableStateOf("") }
+    var languageSearch by remember { mutableStateOf("") }
+    var languagesExpanded by remember { mutableStateOf(false) }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        item {
+            Text("Settings", style = MaterialTheme.typography.headlineMedium)
+        }
 
-        Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
+        item {
+            Text("Keywords", style = MaterialTheme.typography.titleMedium)
 
-        Text(text = "Keywords", style = MaterialTheme.typography.titleMedium)
-
-        OutlinedTextField(
-            value = keywordInput,
-            onValueChange = { keywordInput = it },
-            label = { Text("Add keyword") },
-            trailingIcon = {
-                IconButton(onClick = {
-                    val text = keywordInput.trim()
-                    if (text.isNotEmpty()) {
-                        viewModel.addKeyword(text)
-                        keywordInput = ""
+            OutlinedTextField(
+                value = keywordInput,
+                onValueChange = { keywordInput = it },
+                label = { Text("Add keyword") },
+                trailingIcon = {
+                    IconButton(onClick = {
+                        val text = keywordInput.trim()
+                        if (text.isNotEmpty()) {
+                            viewModel.addKeyword(text)
+                            keywordInput = ""
+                        }
+                    }) {
+                        Text("+", fontSize = 20.sp)
                     }
-                }) {
-                    Text("+", fontSize = 20.sp)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        item {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                settings.keywords.forEach { keyword ->
+                    Chip(label = keyword) { viewModel.removeKeyword(it) }
                 }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            settings.keywords.forEach { keyword ->
-                AssistChip(
-                    onClick = {},
-                    label = { Text(keyword) },
-                    trailingIcon = {
-                        Text(
-                            text = "✕",
-                            modifier = Modifier.clickable { viewModel.removeKeyword(keyword) }
-                        )
-                    }
-                )
             }
         }
 
-        Text(text = "Languages (max 5)", style = MaterialTheme.typography.titleMedium)
+        item {
+            Text("Languages (max 5)", style = MaterialTheme.typography.titleMedium)
 
-        OutlinedTextField(
-            value = languageSearch,
-            onValueChange = {
-                languageSearch = it
-                languagesExpanded = true
-            },
-            label = { Text("Search languages") },
-            modifier = Modifier.fillMaxWidth()
-        )
+            OutlinedTextField(
+                value = languageSearch,
+                onValueChange = {
+                    languageSearch = it
+                    languagesExpanded = true
+                },
+                label = { Text("Search languages") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         if (languagesExpanded) {
-            LanguageDropdown(
-                search = languageSearch,
-                selected = settings.languages,
-                onSelect = {
-                    viewModel.toggleLanguage(it)
-                    languageSearch = ""
-                    languagesExpanded = false
-                }
-            )
-        }
-
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            settings.languages.forEach { code ->
-                AssistChip(
-                    onClick = {},
-                    label = { Text(languageMap[code] ?: code) },
-                    trailingIcon = {
-                        Text(
-                            text = "✕",
-                            modifier = Modifier.clickable { viewModel.toggleLanguage(code) }
-                        )
+            item {
+                LanguageDropdown(
+                    search = languageSearch,
+                    selected = settings.languages,
+                    onSelect = {
+                        viewModel.toggleLanguage(it)
+                        languageSearch = ""
+                        languagesExpanded = false
                     }
                 )
             }
         }
 
-        Divider()
+        item {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                settings.languages.forEach { code ->
+                    Chip(label = languageName(code)) { viewModel.toggleLanguage(code) }
+                }
+            }
+        }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Enable notifications", modifier = Modifier.weight(1f))
-            Switch(
-                checked = settings.notificationsEnabled,
-                onCheckedChange = viewModel::setNotificationsEnabled
-            )
+        item { Divider() }
+
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Enable notifications", modifier = Modifier.weight(1f))
+                Switch(
+                    checked = settings.notificationsEnabled,
+                    onCheckedChange = { viewModel.setNotificationsEnabled(it) }
+                )
+            }
         }
 
         if (settings.notificationsEnabled) {
-            Text(text = "Notifications per day")
-
-            Slider(
-                value = settings.notificationsPerDay.toFloat(),
-                onValueChange = { viewModel.setNotificationsPerDay(it.toInt()) },
-                valueRange = 1f..5f,
-                steps = 3
-            )
-
-            Text(text = "${settings.notificationsPerDay} per day")
+            item {
+                Text("Notifications per day")
+                Slider(
+                    value = settings.notificationsPerDay.toFloat(),
+                    onValueChange = { viewModel.setNotificationsPerDay(it.toInt()) },
+                    valueRange = 1f..5f,
+                    steps = 3
+                )
+                Text("${settings.notificationsPerDay} per day", style = MaterialTheme.typography.labelMedium)
+            }
         }
 
-        Divider()
+        item { Divider() }
 
-        Text(
-            text = "Logout",
-            color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
-            modifier = Modifier
-                .clickable { onLogoutClick() }
-                .padding(vertical = 12.dp)
-        )
+        item {
+            Text(
+                text = "Logout",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .clickable { onLogoutClick() }
+                    .padding(vertical = 12.dp)
+            )
+        }
     }
 }
 
-private val languageMap = mapOf(
-    "it" to "Italian",
-    "en" to "English",
-    "fr" to "French",
-    "de" to "German",
-    "es" to "Spanish",
-    "af" to "Afrikaans",
-    "pt" to "Portuguese",
-    "nl" to "Dutch"
-)
+@Composable
+private fun Chip(
+    label: String,
+    onRemove: (String) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .background(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(50)
+            )
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "✕",
+                color = androidx.compose.ui.graphics.Color(0xFF9F8FE0),
+                modifier = Modifier.clickable { onRemove(label) }
+            )
+        }
+    }
+}
 
 @Composable
 private fun LanguageDropdown(
@@ -170,9 +179,16 @@ private fun LanguageDropdown(
     selected: List<String>,
     onSelect: (String) -> Unit
 ) {
-    val languages = languageMap.entries
-        .filter { it.value.contains(search, ignoreCase = true) }
-        .filterNot { selected.contains(it.key) }
+    val languages = mapOf(
+        "it" to "Italian",
+        "en" to "English",
+        "fr" to "French",
+        "de" to "German",
+        "es" to "Spanish",
+        "af" to "Afrikaans",
+        "pt" to "Portuguese",
+        "nl" to "Dutch"
+    )
 
     Column(
         modifier = Modifier
@@ -180,14 +196,29 @@ private fun LanguageDropdown(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(8.dp)
     ) {
-        languages.forEach { (code, name) ->
-            Text(
-                text = name,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSelect(code) }
-                    .padding(8.dp)
-            )
-        }
+        languages
+            .filter { it.value.contains(search, ignoreCase = true) }
+            .filterNot { selected.contains(it.key) }
+            .forEach { (code, name) ->
+                Text(
+                    text = name,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(code) }
+                        .padding(8.dp)
+                )
+            }
     }
+}
+
+private fun languageName(code: String): String = when (code) {
+    "it" -> "Italian"
+    "en" -> "English"
+    "fr" -> "French"
+    "de" -> "German"
+    "es" -> "Spanish"
+    "af" -> "Afrikaans"
+    "pt" -> "Portuguese"
+    "nl" -> "Dutch"
+    else -> code
 }
