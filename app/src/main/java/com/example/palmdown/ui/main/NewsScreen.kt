@@ -32,16 +32,16 @@ fun NewsScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        Log.d(TAG, "➡️ LaunchedEffect: richiesta news (coroutines)")
+        Log.d(TAG, "LaunchedEffect: richiesta news (coroutines)")
         try {
             val result = repository.getAllNews()
-            Log.d(TAG, "✅ News ricevute: ${result.size}")
+            Log.d(TAG, "News ricevute: ${result.size}")
             result.forEach { news ->
                 Log.d(TAG, "📥 News ID=${news.id}, url='${news.url}'")
             }
             newsList = result
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore Firestore", e)
+            Log.e(TAG, "Errore Firestore", e)
             errorMessage = e.message
         } finally {
             isLoading = false
@@ -90,15 +90,15 @@ private fun NewsCard(news: News) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                Log.d(TAG, "👉 Click su news ID=${news.id}, url=${news.url}")
+                Log.d(TAG, "Click su news ID=${news.id}, url=${news.url}")
 
                 if (news.url.isBlank()) {
-                    Log.w(TAG, "⚠️ URL vuoto, click ignorato")
+                    Log.w(TAG, "URL vuoto, click ignorato")
                     return@clickable
                 }
 
                 val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
-                Log.d(TAG, "🌍 URL finale: $finalUrl")
+                Log.d(TAG, "URL finale: $finalUrl")
 
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl))
                 context.startActivity(intent)

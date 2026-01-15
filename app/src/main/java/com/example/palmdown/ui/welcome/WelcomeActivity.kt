@@ -104,7 +104,6 @@ private fun WelcomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 60.dp)
             ) {
-                //Emoji per dare carattere
                 Text(
                     text = "✍️",
                     fontSize = 80.sp
