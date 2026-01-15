@@ -127,8 +127,8 @@ fun SettingsScreen(
                 Slider(
                     value = settings.notificationsPerDay.toFloat(),
                     onValueChange = { viewModel.setNotificationsPerDay(it.toInt()) },
-                    valueRange = 1f..5f,
-                    steps = 3
+                    valueRange = 1f..10f,
+                    steps = 9
                 )
                 Text("${settings.notificationsPerDay} per day", style = MaterialTheme.typography.labelMedium)
             }

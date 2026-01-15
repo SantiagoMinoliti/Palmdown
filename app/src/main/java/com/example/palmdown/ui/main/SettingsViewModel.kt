@@ -41,7 +41,7 @@ class SettingsViewModel : ViewModel() {
 
     fun setNotificationsPerDay(count: Int) {
         _settings.value = _settings.value.copy(
-            notificationsPerDay = count.coerceIn(1, 5)
+            notificationsPerDay = count.coerceIn(1, 10)
         )
     }
 }
