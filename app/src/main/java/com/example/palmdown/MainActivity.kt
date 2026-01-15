@@ -16,6 +16,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.palmdown.ui.notes.NotesScreen
 import com.example.palmdown.ui.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
+import com.example.palmdown.ui.main.NewsScreen
+
 
 class MainActivity : ComponentActivity() {
 
@@ -106,9 +108,7 @@ private fun NewsScreen() {
 private fun SettingsScreen(
     onLogoutClick: () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        TextButton(onClick = onLogoutClick) {
-            Text("Logout")
-        }
+    TextButton(onClick = onLogoutClick) {
+        Text("Logout")
     }
 }
