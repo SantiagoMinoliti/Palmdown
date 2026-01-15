@@ -8,8 +8,6 @@ import kotlinx.coroutines.tasks.await
 class NotesRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-
-
     private val appId = "palmdown"
 
     private fun getUserNotesCollection() = auth.currentUser?.uid?.let { userId ->
@@ -23,15 +21,8 @@ class NotesRepository {
     suspend fun saveNote(note: Notes): Boolean {
         return try {
             val collection = getUserNotesCollection() ?: return false
-
-            val docRef = if (note.id.isEmpty()) {
-                collection.document()
-            } else {
-                collection.document(note.id)
-            }
-
+            val docRef = if (note.id.isEmpty()) collection.document() else collection.document(note.id)
             val finalNote = note.copy(id = docRef.id)
-
             docRef.set(finalNote).await()
             true
         } catch (e: Exception) {
@@ -42,11 +33,19 @@ class NotesRepository {
     suspend fun getAllNotes(): List<Notes> {
         return try {
             val collection = getUserNotesCollection() ?: return emptyList()
-            val snapshot = collection.get().await()
-
+            val snapshot = collection.orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING).get().await()
             snapshot.toObjects(Notes::class.java)
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    suspend fun deleteNote(noteId: String): Boolean {
+        return try {
+            getUserNotesCollection()?.document(noteId)?.delete()?.await()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 }
