@@ -40,7 +40,6 @@ class NotesRepository {
         }
     }
 
-    // Metodo per eliminare la nota tramite ID
     suspend fun deleteNote(noteId: String): Boolean {
         return try {
             getUserNotesCollection()?.document(noteId)?.delete()?.await()

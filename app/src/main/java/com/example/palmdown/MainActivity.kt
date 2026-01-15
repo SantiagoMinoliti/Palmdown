@@ -14,7 +14,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.palmdown.ui.notes.NotesScreen
-//import com.example.palmdown.ui.news.NewsScreen
 import com.example.palmdown.ui.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 
