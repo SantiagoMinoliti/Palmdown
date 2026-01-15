@@ -3,19 +3,19 @@ package com.example.palmdown.ui.main
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+
 
 @Composable
 fun SettingsScreen(
@@ -24,32 +24,32 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsState()
 
-    var keywordInput by remember { mutableStateOf(TextFieldValue("")) }
+    var keywordInput by rememberSaveable { mutableStateOf("") }
+    var languageSearch by rememberSaveable { mutableStateOf("") }
+    var languagesExpanded by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
 
-        Text(
-            text = "Impostazioni",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "Keywords", style = MaterialTheme.typography.titleMedium)
 
-        // ---- KEYWORDS ----
         OutlinedTextField(
             value = keywordInput,
             onValueChange = { keywordInput = it },
-            label = { Text("Parola chiave") },
+            label = { Text("Add keyword") },
             trailingIcon = {
                 IconButton(onClick = {
-                    val text = keywordInput.text.trim()
+                    val text = keywordInput.trim()
                     if (text.isNotEmpty()) {
                         viewModel.addKeyword(text)
-                        keywordInput = TextFieldValue("")
+                        keywordInput = ""
                     }
                 }) {
                     Text("+", fontSize = 20.sp)
@@ -58,52 +58,78 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(settings.keywords) { keyword ->
-                KeywordPill(
-                    keyword = keyword,
-                    onRemove = { viewModel.removeKeyword(it) }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            settings.keywords.forEach { keyword ->
+                AssistChip(
+                    onClick = {},
+                    label = { Text(keyword) },
+                    trailingIcon = {
+                        Text(
+                            text = "✕",
+                            modifier = Modifier.clickable { viewModel.removeKeyword(keyword) }
+                        )
+                    }
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Text(text = "Languages (max 5)", style = MaterialTheme.typography.titleMedium)
 
-        // ---- LANGUAGES ----
-        Text(
-            text = "Lingue (max 5)",
-            style = MaterialTheme.typography.titleMedium
+        OutlinedTextField(
+            value = languageSearch,
+            onValueChange = {
+                languageSearch = it
+                languagesExpanded = true
+            },
+            label = { Text("Search languages") },
+            modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LanguageSelector(
-            selectedLanguages = settings.languages,
-            onToggle = { viewModel.toggleLanguage(it) }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ---- NOTIFICATIONS ----
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Abilita notifiche",
-                modifier = Modifier.weight(1f)
+        if (languagesExpanded) {
+            LanguageDropdown(
+                search = languageSearch,
+                selected = settings.languages,
+                onSelect = {
+                    viewModel.toggleLanguage(it)
+                    languageSearch = ""
+                    languagesExpanded = false
+                }
             )
+        }
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            settings.languages.forEach { code ->
+                AssistChip(
+                    onClick = {},
+                    label = { Text(languageMap[code] ?: code) },
+                    trailingIcon = {
+                        Text(
+                            text = "✕",
+                            modifier = Modifier.clickable { viewModel.toggleLanguage(code) }
+                        )
+                    }
+                )
+            }
+        }
+
+        Divider()
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "Enable notifications", modifier = Modifier.weight(1f))
             Switch(
                 checked = settings.notificationsEnabled,
-                onCheckedChange = { viewModel.setNotificationsEnabled(it) }
+                onCheckedChange = viewModel::setNotificationsEnabled
             )
         }
 
         if (settings.notificationsEnabled) {
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(text = "Notifiche al giorno")
+            Text(text = "Notifications per day")
 
             Slider(
                 value = settings.notificationsPerDay.toFloat(),
@@ -112,81 +138,56 @@ fun SettingsScreen(
                 steps = 3
             )
 
-            Text(
-                text = "${settings.notificationsPerDay} al giorno",
-                style = MaterialTheme.typography.labelMedium
-            )
+            Text(text = "${settings.notificationsPerDay} per day")
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Divider()
 
-        // ---- LOGOUT ----
         Text(
             text = "Logout",
-            color = Color.Red,
-            fontSize = 18.sp,
-            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
             modifier = Modifier
-                .fillMaxWidth()
                 .clickable { onLogoutClick() }
-                .padding(vertical = 16.dp)
+                .padding(vertical = 12.dp)
         )
     }
 }
 
+private val languageMap = mapOf(
+    "it" to "Italian",
+    "en" to "English",
+    "fr" to "French",
+    "de" to "German",
+    "es" to "Spanish",
+    "af" to "Afrikaans",
+    "pt" to "Portuguese",
+    "nl" to "Dutch"
+)
+
 @Composable
-private fun KeywordPill(
-    keyword: String,
-    onRemove: (String) -> Unit
+private fun LanguageDropdown(
+    search: String,
+    selected: List<String>,
+    onSelect: (String) -> Unit
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    val languages = languageMap.entries
+        .filter { it.value.contains(search, ignoreCase = true) }
+        .filterNot { selected.contains(it.key) }
+
+    Column(
         modifier = Modifier
-            .background(Color.LightGray, RoundedCornerShape(16.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(8.dp)
     ) {
-        Text(text = keyword)
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = "✕",
-            modifier = Modifier.clickable { onRemove(keyword) },
-            color = Color.DarkGray
-        )
-    }
-}
-
-@Composable
-private fun LanguageSelector(
-    selectedLanguages: List<String>,
-    onToggle: (String) -> Unit
-) {
-    val languages = listOf(
-        "it" to "Italiano",
-        "en" to "English",
-        "fr" to "Francese",
-        "de" to "Tedesco",
-        "es" to "Spagnolo",
-        "af" to "Afrikaans"
-    )
-
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(languages) { (code, name) ->
-            val selected = selectedLanguages.contains(code)
-
-            Box(
+        languages.forEach { (code, name) ->
+            Text(
+                text = name,
                 modifier = Modifier
-                    .background(
-                        color = if (selected) MaterialTheme.colorScheme.primary else Color.LightGray,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .clickable { onToggle(code) }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = name,
-                    color = if (selected) Color.White else Color.Black
-                )
-            }
+                    .fillMaxWidth()
+                    .clickable { onSelect(code) }
+                    .padding(8.dp)
+            )
         }
     }
 }
