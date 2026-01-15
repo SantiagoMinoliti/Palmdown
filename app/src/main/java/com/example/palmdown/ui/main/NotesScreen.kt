@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -24,6 +25,8 @@ import com.example.palmdown.model.Notes
 import com.example.palmdown.repository.NotesRepository
 import com.example.palmdown.ui.editor.EditorActivity
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +76,7 @@ fun NotesScreen() {
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Notes",
                 style = MaterialTheme.typography.headlineMedium,
@@ -81,7 +84,7 @@ fun NotesScreen() {
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -158,28 +161,59 @@ fun NotesScreen() {
 
 @Composable
 fun NoteCard(note: Notes, onClick: () -> Unit) {
+    val dateTimeData = remember(note) {
+        val dateObj = Date(note.date)
+        val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.ITALY)
+        val timeFormatter = SimpleDateFormat("HH:mm", Locale.ITALY)
+        Pair(dateFormatter.format(dateObj), timeFormatter.format(dateObj))
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
-        tonalElevation = 1.dp
+        color = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
+        tonalElevation = 8.dp
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Text(
-                text = if (note.title.isEmpty()) "Senza titolo" else note.title,
+                text = if (note.title.isBlank()) "No title" else note.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (note.title.isBlank()) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            if (note.content.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(6.dp))
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = if (note.content.isBlank()) "No content" else note.content,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = note.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
+                    text = dateTimeData.first,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    fontSize = 10.sp
+                )
+                Text(
+                    text = dateTimeData.second,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    fontSize = 10.sp
                 )
             }
         }
