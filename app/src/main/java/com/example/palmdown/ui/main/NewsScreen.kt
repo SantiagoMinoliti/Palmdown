@@ -17,6 +17,7 @@ import com.example.palmdown.model.News
 import com.example.palmdown.repository.NewsRepository
 import com.example.palmdown.utils.DateUtils
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 
 private const val TAG = "NewsDebug"
 
@@ -83,6 +84,7 @@ fun NewsScreen() {
 private fun NewsCard(news: News) {
 
     val context = LocalContext.current
+    val timeFormat = SimpleDateFormat("HH:mm")
 
     Card(
         modifier = Modifier
@@ -128,6 +130,12 @@ private fun NewsCard(news: News) {
                     text = DateUtils.formatDate(news.date),
                     style = MaterialTheme.typography.labelSmall
                 )
+
+                Text(
+                    text = news.date?.let { timeFormat.format(it) } ?: "",
+                    style = MaterialTheme.typography.labelSmall
+                )
+
                 Text(
                     text = news.country,
                     style = MaterialTheme.typography.labelSmall
