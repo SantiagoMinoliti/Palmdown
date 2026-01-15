@@ -17,6 +17,7 @@ import com.example.palmdown.ui.notes.NotesScreen
 import com.example.palmdown.ui.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.example.palmdown.ui.main.NewsScreen
+import com.example.palmdown.ui.main.SettingsScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -94,21 +95,5 @@ private fun BottomBar(navController: androidx.navigation.NavHostController) {
             label = { Text("Settings") },
             icon = {}
         )
-    }
-}
-
-@Composable
-private fun NewsScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("News Screen")
-    }
-}
-
-@Composable
-private fun SettingsScreen(
-    onLogoutClick: () -> Unit
-) {
-    TextButton(onClick = onLogoutClick) {
-        Text("Logout")
     }
 }
