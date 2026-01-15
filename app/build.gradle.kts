@@ -52,6 +52,7 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Jetpack
     implementation(platform("androidx.compose:compose-bom:2025.12.01"))
