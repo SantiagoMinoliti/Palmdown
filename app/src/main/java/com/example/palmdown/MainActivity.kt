@@ -4,14 +4,17 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.palmdown.ui.notes.NotesScreen
+//import com.example.palmdown.ui.news.NewsScreen
 import com.example.palmdown.ui.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 
@@ -94,20 +97,19 @@ private fun BottomBar(navController: androidx.navigation.NavHostController) {
 }
 
 @Composable
-private fun NotesScreen() {
-    Text("Notes Screen")
-}
-
-@Composable
 private fun NewsScreen() {
-    Text("News Screen")
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("News Screen")
+    }
 }
 
 @Composable
 private fun SettingsScreen(
     onLogoutClick: () -> Unit
 ) {
-    TextButton(onClick = onLogoutClick) {
-        Text("Logout")
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        TextButton(onClick = onLogoutClick) {
+            Text("Logout")
+        }
     }
 }
