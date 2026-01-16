@@ -7,10 +7,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.palmdown.model.News
@@ -56,7 +58,9 @@ fun NewsScreen() {
 
         Text(
             text = "News",
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -86,7 +90,7 @@ private fun NewsCard(news: News) {
     val context = LocalContext.current
     val timeFormat = SimpleDateFormat("HH:mm")
 
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
@@ -103,7 +107,9 @@ private fun NewsCard(news: News) {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl))
                 context.startActivity(intent)
             },
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
+        tonalElevation = 8.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
 
