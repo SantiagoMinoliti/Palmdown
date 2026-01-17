@@ -76,11 +76,10 @@ fun NotesScreen() {
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Notes",
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
@@ -163,8 +162,8 @@ fun NotesScreen() {
 fun NoteCard(note: Notes, onClick: () -> Unit) {
     val dateTimeData = remember(note) {
         val dateObj = Date(note.date)
-        val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.ITALY)
-        val timeFormatter = SimpleDateFormat("HH:mm", Locale.ITALY)
+        val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
         Pair(dateFormatter.format(dateObj), timeFormatter.format(dateObj))
     }
 
@@ -186,7 +185,7 @@ fun NoteCard(note: Notes, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = if (note.content.isBlank()) "No content" else note.content,
