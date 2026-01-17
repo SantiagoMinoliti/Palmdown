@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -59,7 +58,13 @@ class WelcomeActivity : ComponentActivity() {
         }
 
         setContent {
-            MaterialTheme {
+            MaterialTheme(
+                colorScheme = lightColorScheme(
+                    primary = Color(0xFF1A1A1A),
+                    secondary = Color(0xFF455A64),
+                    background = Color(0xFFF8F9FA)
+                )
+            ) {
                 WelcomeScreen(
                     onSignInClick = { launchSignIn() }
                 )
@@ -82,7 +87,7 @@ class WelcomeActivity : ComponentActivity() {
             signInLauncher.launch(signInIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Error launching sign in", e)
-            Toast.makeText(this, "Errore durante l'avvio del login", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Authentication service unavailable", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -96,7 +101,7 @@ class WelcomeActivity : ComponentActivity() {
                 Log.w(TAG, "Sign in cancelled by user")
             } else {
                 Log.e(TAG, "Sign in error: ${response.error?.errorCode}")
-                Toast.makeText(this, "Errore di accesso: ${response.error?.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Sign in failed: ${response.error?.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -108,7 +113,6 @@ class WelcomeActivity : ComponentActivity() {
             finish()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start MainActivity. Check your Manifest!", e)
-            Toast.makeText(this, "Impossibile avviare l'app principale", Toast.LENGTH_LONG).show()
         }
     }
 }
@@ -119,10 +123,7 @@ private fun WelcomeScreen(
 ) {
     val context = LocalContext.current
     val gradient = Brush.verticalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.background
-        )
+        colors = listOf(Color(0xFFF1F2F6), Color(0xFFFFFFFF))
     )
 
     Box(
@@ -133,19 +134,21 @@ private fun WelcomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
+                .padding(horizontal = 40.dp, vertical = 60.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // Header Section
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 60.dp)
+                modifier = Modifier.weight(1f, fill = false)
             ) {
+                // Circular Logo
                 Surface(
                     modifier = Modifier.size(120.dp),
-                    shape = CircleShape, // prendere il Cerchio
+                    shape = CircleShape,
                     color = Color.White,
-                    shadowElevation = 8.dp
+                    shadowElevation = 6.dp
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -155,61 +158,110 @@ private fun WelcomeScreen(
                         if (drawable != null) {
                             Image(
                                 painter = rememberDrawablePainter(drawable = drawable),
-                                contentDescription = "Logo PalmDown",
-                                contentScale = ContentScale.Crop, // Ritaglia x riempire cerchio
+                                contentDescription = "App Logo",
+                                contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(120.dp)
-                                    .clip(CircleShape) // utilizza quello di prima
+                                    .clip(CircleShape)
                             )
-                        } else {
-                            Text(text = "✍️", fontSize = 40.sp)
                         }
                     }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Feature Badges (L'elemento che mancava)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FeatureBadge(text = "LIVE NEWS")
+                    Text("•", color = Color(0xFFB2BEC3))
+                    FeatureBadge(text = "SMART NOTES")
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "PalmDown",
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = "Palmdown",
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-1).sp,
+                    color = Color(0xFF2D3436)
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Sottotitolo aggiornato in base alla query
                 Text(
-                    text = "Le tue idee, ovunque tu sia.\nSemplice. Veloce. Pulito.",
+                    text = "Stay informed with real-time alerts.\nOrganize your thoughts instantly.",
                     style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 24.sp
+                    fontWeight = FontWeight.Normal,
+                    lineHeight = 26.sp,
+                    color = Color(0xFF636E72),
+                    textAlign = TextAlign.Center
                 )
             }
 
+            // Bottom Section
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Text(
+                    text = "Everything you need, in one place.",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFFB2BEC3),
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+
                 Button(
                     onClick = onSignInClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
+                        .height(60.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                        containerColor = Color(0xFF2D3436)
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                 ) {
                     Text(
-                        text = "CLICK TO START",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        text = "Continue to App",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // Minimal accent
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFDFE6E9))
+                )
             }
         }
+    }
+}
+
+@Composable
+fun FeatureBadge(text: String) {
+    Surface(
+        color = Color(0xFF2D3436).copy(alpha = 0.05f),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+            color = Color(0xFF636E72)
+        )
     }
 }
