@@ -2,9 +2,12 @@ package com.example.palmdown.ui.welcome
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -23,8 +28,13 @@ import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
 import com.google.firebase.auth.FirebaseAuth
 import com.example.palmdown.MainActivity
+import com.example.palmdown.R
+import com.google.accompanist.drawablepainter.rememberDrawablePainter
+import androidx.core.content.ContextCompat
 
 class WelcomeActivity : ComponentActivity() {
+
+    private val TAG = "WelcomeActivity"
 
     private val signInLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(
@@ -36,9 +46,14 @@ class WelcomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (FirebaseAuth.getInstance().currentUser != null) {
-            startMainActivity()
-            return
+        // Check if user is already logged in
+        try {
+            if (FirebaseAuth.getInstance().currentUser != null) {
+                startMainActivity()
+                return
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Firebase initialization error", e)
         }
 
         setContent {
@@ -51,29 +66,48 @@ class WelcomeActivity : ComponentActivity() {
     }
 
     private fun launchSignIn() {
-        val providers = arrayListOf(
-            AuthUI.IdpConfig.EmailBuilder().build()
-        )
+        try {
+            val providers = arrayListOf(
+                AuthUI.IdpConfig.EmailBuilder().build()
+            )
 
-        val signInIntent = AuthUI.getInstance()
-            .createSignInIntentBuilder()
-            .setAvailableProviders(providers)
-            .setTheme(com.firebase.ui.auth.R.style.FirebaseUI)
-            .build()
+            val signInIntent = AuthUI.getInstance()
+                .createSignInIntentBuilder()
+                .setAvailableProviders(providers)
+                .setTheme(com.firebase.ui.auth.R.style.FirebaseUI)
+                .build()
 
-        signInLauncher.launch(signInIntent)
+            signInLauncher.launch(signInIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error launching sign in", e)
+            Toast.makeText(this, "Errore durante l'avvio del login", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun onSignInResult(result: FirebaseAuthUIAuthenticationResult) {
+        val response = result.idpResponse
         if (result.resultCode == RESULT_OK) {
+            Log.d(TAG, "Sign in successful")
             startMainActivity()
+        } else {
+            if (response == null) {
+                Log.w(TAG, "Sign in cancelled by user")
+            } else {
+                Log.e(TAG, "Sign in error: ${response.error?.errorCode}")
+                Toast.makeText(this, "Errore di accesso: ${response.error?.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
     private fun startMainActivity() {
-        val intent = Intent(this, MainActivity::class.java)
-        startActivity(intent)
-        finish()
+        try {
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+            finish()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start MainActivity. Check your Manifest!", e)
+            Toast.makeText(this, "Impossibile avviare l'app principale", Toast.LENGTH_LONG).show()
+        }
     }
 }
 
@@ -81,6 +115,7 @@ class WelcomeActivity : ComponentActivity() {
 private fun WelcomeScreen(
     onSignInClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val gradient = Brush.verticalGradient(
         colors = listOf(
             MaterialTheme.colorScheme.primaryContainer,
@@ -104,12 +139,33 @@ private fun WelcomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 60.dp)
             ) {
-                Text(
-                    text = "✍️",
-                    fontSize = 80.sp
-                )
+                // LOGO CONTAINER
+                Surface(
+                    modifier = Modifier.size(120.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    color = Color.White,
+                    shadowElevation = 8.dp
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // FIX: Carichiamo il drawable in modo sicuro per evitare il crash con icone XML adattive
+                        val drawable = ContextCompat.getDrawable(context, R.mipmap.ic_launcher)
+                        if (drawable != null) {
+                            Image(
+                                painter = rememberDrawablePainter(drawable = drawable),
+                                contentDescription = "Logo PalmDown",
+                                modifier = Modifier.size(85.dp)
+                            )
+                        } else {
+                            // Fallback in caso l'immagine non venga caricata
+                            Text(text = "✍️", fontSize = 40.sp)
+                        }
+                    }
+                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
                     text = "PalmDown",
@@ -127,7 +183,6 @@ private fun WelcomeScreen(
                 )
             }
 
-            // Parte Inferiore: Pulsanti di Azione
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally

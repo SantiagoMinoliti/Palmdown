@@ -80,4 +80,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    //For the Logo in WelcomeActivity:
+    implementation("com.google.accompanist:accompanist-drawablepainter:0.32.0")
 }
