@@ -1,4 +1,4 @@
-package com.example.palmdown.workers
+package com.example.palmdown.worker
 
 import android.Manifest
 import android.app.NotificationChannel
