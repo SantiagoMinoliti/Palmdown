@@ -10,13 +10,16 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +49,6 @@ class WelcomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Check if user is already logged in
         try {
             if (FirebaseAuth.getInstance().currentUser != null) {
                 startMainActivity()
@@ -139,10 +141,9 @@ private fun WelcomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 60.dp)
             ) {
-                // LOGO CONTAINER
                 Surface(
                     modifier = Modifier.size(120.dp),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = CircleShape, // prendere il Cerchio
                     color = Color.White,
                     shadowElevation = 8.dp
                 ) {
@@ -150,16 +151,17 @@ private fun WelcomeScreen(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // FIX: Carichiamo il drawable in modo sicuro per evitare il crash con icone XML adattive
                         val drawable = ContextCompat.getDrawable(context, R.mipmap.ic_launcher)
                         if (drawable != null) {
                             Image(
                                 painter = rememberDrawablePainter(drawable = drawable),
                                 contentDescription = "Logo PalmDown",
-                                modifier = Modifier.size(85.dp)
+                                contentScale = ContentScale.Crop, // Ritaglia x riempire cerchio
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(CircleShape) // utilizza quello di prima
                             )
                         } else {
-                            // Fallback in caso l'immagine non venga caricata
                             Text(text = "✍️", fontSize = 40.sp)
                         }
                     }
@@ -206,14 +208,6 @@ private fun WelcomeScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Accedendo accetti i nostri Termini di Servizio",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline,
-                    textAlign = TextAlign.Center
-                )
-
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
