@@ -48,4 +48,28 @@ class NewsRepository {
             emptyList()
         }
     }
+
+    suspend fun saveNewsIfNotExists(news: News): Boolean {
+        return try {
+            val collection = getUserNewsCollection() ?: return false
+
+            val existing = collection
+                .whereEqualTo("url", news.url)
+                .limit(1)
+                .get()
+                .await()
+
+            if (!existing.isEmpty) {
+                return false
+            }
+
+            val docRef = collection.document()
+            val finalNews = news.copy(id = docRef.id)
+
+            docRef.set(finalNews).await()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

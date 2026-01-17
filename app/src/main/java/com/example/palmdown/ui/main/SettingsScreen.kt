@@ -1,5 +1,10 @@
 package com.example.palmdown.ui.main
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -10,12 +15,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.text.font.FontWeight
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun SettingsScreen(
@@ -24,11 +31,21 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsState()
     val allLanguages by viewModel.availableLanguages.collectAsState()
+
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     var keywordInput by remember { mutableStateOf("") }
     var languageSearch by remember { mutableStateOf("") }
     var languagesExpanded by remember { mutableStateOf(false) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.setNotificationsEnabled(true)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -48,10 +65,10 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             item {
-                Text("Settings",
+                Text(
+                    "Settings",
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -128,9 +145,7 @@ fun SettingsScreen(
                 ) {
                     settings.languages.forEach { code ->
                         val name = allLanguages.firstOrNull { it.code == code }?.name ?: code
-                        Chip(label = name) {
-                            viewModel.toggleLanguage(code)
-                        }
+                        Chip(label = name) { viewModel.toggleLanguage(code) }
                     }
                 }
             }
@@ -142,7 +157,22 @@ fun SettingsScreen(
                     Text("Enable notifications", modifier = Modifier.weight(1f))
                     Switch(
                         checked = settings.notificationsEnabled,
-                        onCheckedChange = { viewModel.setNotificationsEnabled(it) }
+                        onCheckedChange = { enabled ->
+                            if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                val granted = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                if (!granted) {
+                                    notificationPermissionLauncher.launch(
+                                        Manifest.permission.POST_NOTIFICATIONS
+                                    )
+                                    return@Switch
+                                }
+                            }
+                            viewModel.setNotificationsEnabled(enabled)
+                        }
                     )
                 }
             }
@@ -156,7 +186,10 @@ fun SettingsScreen(
                         valueRange = 1f..10f,
                         steps = 9
                     )
-                    Text("${settings.notificationsPerDay} per day", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        "${settings.notificationsPerDay} per day",
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
 
