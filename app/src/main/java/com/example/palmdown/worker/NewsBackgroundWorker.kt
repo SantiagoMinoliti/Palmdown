@@ -17,7 +17,9 @@ import com.example.palmdown.repository.SettingsRepository
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 class NewsBackgroundWorker(
     private val context: Context,
@@ -54,16 +56,24 @@ class NewsBackgroundWorker(
         val results = json.optJSONArray("results") ?: return Result.success()
         if (results.length() == 0) return Result.success()
 
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         val newNews = mutableListOf<News>()
 
         for (i in 0 until results.length()) {
             val item = results.getJSONObject(i)
 
+            val pubDateRaw = item.optString("pubDate")
+            val parsedDate: Date? = try {
+                if (pubDateRaw.isNotBlank()) dateFormat.parse(pubDateRaw) else null
+            } catch (e: Exception) {
+                null
+            }
+
             val news = News(
                 title = item.optString("title"),
                 content = item.optString("description"),
                 url = item.optString("link"),
-                date = Date(),
+                date = parsedDate,
                 country = item.optString("country")
             )
 

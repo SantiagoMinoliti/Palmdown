@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 import com.example.palmdown.model.News
 import com.example.palmdown.repository.NewsRepository
 import com.example.palmdown.utils.DateUtils
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Locale
 
 private const val TAG = "NewsDebug"
 
@@ -27,7 +27,6 @@ private const val TAG = "NewsDebug"
 fun NewsScreen() {
 
     val repository = remember { NewsRepository() }
-    val scope = rememberCoroutineScope()
 
     var newsList by remember { mutableStateOf<List<News>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -90,6 +89,11 @@ private fun NewsCard(news: News) {
     val context = LocalContext.current
     val timeFormat = SimpleDateFormat("HH:mm")
 
+    // Normalizzazione content: null o "null" -> stringa vuota
+    val safeContent = news.content
+        .takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) }
+        ?: ""
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -118,13 +122,14 @@ private fun NewsCard(news: News) {
                 style = MaterialTheme.typography.titleMedium
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = news.content,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (safeContent.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = safeContent,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -142,11 +147,35 @@ private fun NewsCard(news: News) {
                     style = MaterialTheme.typography.labelSmall
                 )
 
-                Text(
-                    text = news.country,
-                    style = MaterialTheme.typography.labelSmall
-                )
+                val country = formatCountrySingle(news.country)
+                if (country.isNotBlank()) {
+                    Text(
+                        text = country,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
         }
     }
+}
+
+private fun formatCountrySingle(raw: String): String {
+    if (raw.isBlank()) return ""
+
+    val cleaned = raw
+        .removePrefix("[")
+        .removeSuffix("]")
+        .replace("\"", "")
+
+    val first = cleaned.split(",").firstOrNull()?.trim() ?: return ""
+
+    val lower = first.lowercase(Locale.getDefault())
+
+    val lowercaseWords = setOf("of", "and", "the")
+
+    return lower.split(" ")
+        .joinToString(" ") { word ->
+            if (word in lowercaseWords) word
+            else word.replaceFirstChar { it.uppercase() }
+        }
 }

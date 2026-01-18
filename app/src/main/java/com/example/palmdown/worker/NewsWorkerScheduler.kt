@@ -3,7 +3,7 @@ package com.example.palmdown.worker
 import android.content.Context
 import androidx.work.*
 import com.example.palmdown.repository.SettingsRepository
-import com.example.palmdown.workers.NewsBackgroundWorker
+import com.example.palmdown.worker.NewsBackgroundWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
