@@ -40,7 +40,7 @@ class NewsBackgroundWorker(
         val languageParam = languages.joinToString(",") { it.lowercase() }
 
         val url = buildString {
-            append("https://newsdata.io/api/1/latest?apikey=pub_c5ddd94b11714cc7a3398b4a60d44702")
+            append("https://newsdata.io/api/1/latest?apikey=pub_5c29853e6fe54ab9b1b0e4d69ae7fed6")
             if (query.isNotBlank()) append("&q=$query")
             if (languageParam.isNotBlank()) append("&language=$languageParam")
         }
