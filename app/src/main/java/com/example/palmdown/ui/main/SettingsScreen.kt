@@ -116,7 +116,7 @@ fun SettingsScreen(
                         languagesExpanded = settings.languages.size < 5
                     },
                     enabled = settings.languages.size < 5,
-                    label = { Text("Search languages") },
+                    label = { Text("Add languages") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -184,7 +184,7 @@ fun SettingsScreen(
                         value = settings.notificationsPerDay.toFloat(),
                         onValueChange = { viewModel.setNotificationsPerDay(it.toInt()) },
                         valueRange = 1f..10f,
-                        steps = 9
+                        steps = 8
                     )
                     Text(
                         "${settings.notificationsPerDay} per day",
