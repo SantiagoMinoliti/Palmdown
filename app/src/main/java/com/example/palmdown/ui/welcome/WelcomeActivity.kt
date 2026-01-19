@@ -7,8 +7,15 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
+import com.firebase.ui.auth.AuthUI
+import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
+import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
+import com.google.firebase.auth.FirebaseAuth
+import com.example.palmdown.MainActivity
+import com.example.palmdown.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,12 +32,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.firebase.ui.auth.AuthUI
-import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
-import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
-import com.google.firebase.auth.FirebaseAuth
-import com.example.palmdown.MainActivity
-import com.example.palmdown.R
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import androidx.core.content.ContextCompat
 
@@ -48,13 +49,9 @@ class WelcomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        try {
-            if (FirebaseAuth.getInstance().currentUser != null) {
-                startMainActivity()
-                return
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Firebase initialization error", e)
+        if (FirebaseAuth.getInstance().currentUser != null) {
+            startMainActivity()
+            return
         }
 
         setContent {
@@ -75,6 +72,7 @@ class WelcomeActivity : ComponentActivity() {
     private fun launchSignIn() {
         try {
             val providers = arrayListOf(
+                AuthUI.IdpConfig.GoogleBuilder().build(),
                 AuthUI.IdpConfig.EmailBuilder().build()
             )
 
@@ -118,9 +116,7 @@ class WelcomeActivity : ComponentActivity() {
 }
 
 @Composable
-private fun WelcomeScreen(
-    onSignInClick: () -> Unit
-) {
+private fun WelcomeScreen(onSignInClick: () -> Unit) {
     val context = LocalContext.current
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFF1F2F6), Color(0xFFFFFFFF))
@@ -138,22 +134,17 @@ private fun WelcomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header Section
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.weight(1f, fill = false)
             ) {
-                // Circular Logo
                 Surface(
                     modifier = Modifier.size(120.dp),
                     shape = CircleShape,
                     color = Color.White,
                     shadowElevation = 6.dp
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         val drawable = ContextCompat.getDrawable(context, R.mipmap.ic_launcher)
                         if (drawable != null) {
                             Image(
@@ -170,7 +161,6 @@ private fun WelcomeScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Feature Badges (L'elemento che mancava)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -192,7 +182,6 @@ private fun WelcomeScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Sottotitolo aggiornato in base alla query
                 Text(
                     text = "Stay informed with real-time alerts.\nOrganize your thoughts instantly.",
                     style = MaterialTheme.typography.bodyLarge,
@@ -203,7 +192,6 @@ private fun WelcomeScreen(
                 )
             }
 
-            // Bottom Section
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -221,9 +209,7 @@ private fun WelcomeScreen(
                         .fillMaxWidth()
                         .height(60.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2D3436)
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2D3436)),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                 ) {
                     Text(
@@ -236,7 +222,6 @@ private fun WelcomeScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // Minimal accent
                 Box(
                     modifier = Modifier
                         .width(40.dp)
