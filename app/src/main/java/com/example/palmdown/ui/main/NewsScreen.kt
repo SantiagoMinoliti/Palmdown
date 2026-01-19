@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -88,9 +89,13 @@ fun NewsScreen(
 
             errorMessage != null -> {
                 Text(
-                    text = errorMessage ?: "Errore nel caricamento news",
+                    text = errorMessage ?: "Error while loading news",
                     color = MaterialTheme.colorScheme.error
                 )
+            }
+
+            newsList.isEmpty() -> {
+                EmptyNewsTutorial()
             }
 
             else -> {
@@ -103,6 +108,32 @@ fun NewsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyNewsTutorial() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "No news yet",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "Refresh the page to request them.\nSwipe to Settings to control them!",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
