@@ -129,7 +129,7 @@ private fun EmptyNewsTutorial() {
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Refresh the page to request them.\nSwipe to Settings to control them!",
+            text = "Refresh the page to request them.\nGo to Settings to control them!",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
