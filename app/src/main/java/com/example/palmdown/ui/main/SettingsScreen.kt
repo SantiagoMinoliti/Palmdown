@@ -197,7 +197,7 @@ fun SettingsScreen(
 
             item {
                 Text(
-                    text = "Logout",
+                    text = "Log out",
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier
                         .clickable { onLogoutClick() }
