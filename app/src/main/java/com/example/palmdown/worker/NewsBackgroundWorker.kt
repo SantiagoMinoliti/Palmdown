@@ -14,6 +14,7 @@ import com.example.palmdown.R
 import com.example.palmdown.model.News
 import com.example.palmdown.repository.NewsRepository
 import com.example.palmdown.repository.SettingsRepository
+import com.example.palmdown.ui.main.NewsScreenTracker
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -56,7 +57,7 @@ class NewsBackgroundWorker(
         val results = json.optJSONArray("results") ?: return Result.success()
         if (results.length() == 0) return Result.success()
 
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val newNews = mutableListOf<News>()
 
         for (i in 0 until results.length()) {
@@ -81,7 +82,7 @@ class NewsBackgroundWorker(
             if (inserted) newNews.add(news)
         }
 
-        if (newNews.isNotEmpty()) {
+        if (newNews.isNotEmpty() && !NewsScreenTracker.isNewsScreenVisible) {
             showNotification(newNews.first())
         }
 
