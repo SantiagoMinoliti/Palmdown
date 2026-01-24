@@ -67,16 +67,13 @@ class NewsBackgroundWorker(
                 if (pubDate.isNotBlank()) dateFormat.parse(pubDate) else null
             }.getOrNull()
 
-            val parsedFetchedAt = runCatching {
-                if (fetchedAtRaw.isNotBlank()) dateFormat.parse(fetchedAtRaw) else Date()
-            }.getOrNull() ?: Date()
 
             val news = News(
                 title = item.optString("title"),
                 content = item.optString("description"),
                 url = item.optString("link"),
                 date = parsedPubDate,
-                fetchedAt = parsedFetchedAt,
+                fetchedAt = Date(),
                 country = item.optJSONArray("country")?.toString() ?: "",
                 keywords = item.optJSONArray("keywords")?.let { arr ->
                     List(arr.length()) { idx -> arr.optString(idx) }
@@ -106,19 +103,16 @@ class NewsBackgroundWorker(
         return Result.success()
     }
 
-
     private fun showNotification(news: News) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
-
             if (!granted) return
         }
 
         val channelId = "news_channel"
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
