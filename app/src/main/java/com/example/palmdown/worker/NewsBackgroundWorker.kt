@@ -33,8 +33,10 @@ class NewsBackgroundWorker(
     private val newsRepository = NewsRepository()
 
     override suspend fun doWork(): Result {
+        val forceRefresh = inputData.getBoolean(KEY_FORCE_REFRESH, false)
+
         val settings = settingsRepository.getSettings() ?: return Result.success()
-        if (!settings.notificationsEnabled) return Result.success()
+        if (!forceRefresh && !settings.notificationsEnabled) return Result.success()
 
         val keywords = settings.keywords
         val languages = settings.languages
@@ -84,7 +86,7 @@ class NewsBackgroundWorker(
             if (inserted) newNews.add(news)
         }
 
-        if (newNews.isNotEmpty() && !NewsScreenTracker.isNewsScreenVisible) {
+        if (newNews.isNotEmpty() && !NewsScreenTracker.isNewsScreenVisible && !forceRefresh) {
             showNotification(newNews.first())
         }
 
@@ -136,5 +138,9 @@ class NewsBackgroundWorker(
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(System.currentTimeMillis().toInt(), notification)
+    }
+
+    companion object {
+        const val KEY_FORCE_REFRESH = "force_refresh"
     }
 }

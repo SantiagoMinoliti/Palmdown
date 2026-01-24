@@ -24,15 +24,12 @@ import com.example.palmdown.utils.DateUtils
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-private const val TAG = "NewsDebug"
-
 @Composable
 fun NewsScreen(
     viewModel: NewsViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
-    // 🔴 TRACKER: screen visibile
     DisposableEffect(Unit) {
         NewsScreenTracker.isNewsScreenVisible = true
         onDispose {
@@ -65,7 +62,7 @@ fun NewsScreen(
             )
 
             IconButton(
-                onClick = { viewModel.refresh(context) },
+                onClick = { viewModel.refresh(context, forceRefresh = true) },
                 enabled = !isLoading
             ) {
                 Icon(

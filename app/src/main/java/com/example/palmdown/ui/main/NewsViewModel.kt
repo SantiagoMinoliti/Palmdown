@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.example.palmdown.model.News
 import com.example.palmdown.repository.NewsRepository
 import com.example.palmdown.worker.NewsBackgroundWorker
@@ -40,10 +41,14 @@ class NewsViewModel(
         }
     }
 
-    fun refresh(context: Context) {
+    fun refresh(context: Context, forceRefresh: Boolean = false) {
         _isLoading.value = true
 
-        val request = OneTimeWorkRequestBuilder<NewsBackgroundWorker>().build()
+        val request = OneTimeWorkRequestBuilder<NewsBackgroundWorker>()
+            .setInputData(
+                workDataOf("force_refresh" to forceRefresh)
+            )
+            .build()
 
         WorkManager.getInstance(context)
             .enqueueUniqueWork(
