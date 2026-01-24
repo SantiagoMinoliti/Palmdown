@@ -38,11 +38,8 @@ class NewsBackgroundWorker(
         val settings = settingsRepository.getSettings() ?: return Result.success()
         if (!forceRefresh && !settings.notificationsEnabled) return Result.success()
 
-        val keywords = settings.keywords
-        val languages = settings.languages
-
-        val query = keywords.joinToString(" OR ")
-        val languageParam = languages.joinToString(",") { it.lowercase() }
+        val query = settings.keywords.joinToString(" OR ")
+        val languageParam = settings.languages.joinToString(",") { it.lowercase() }
 
         val url = buildString {
             append("https://newsdata.io/api/1/latest?apikey=pub_5c29853e6fe54ab9b1b0e4d69ae7fed6")
@@ -51,15 +48,11 @@ class NewsBackgroundWorker(
         }
 
         val client = OkHttpClient()
-        val request = Request.Builder().url(url).build()
-
-        val response = client.newCall(request).execute()
+        val response = client.newCall(Request.Builder().url(url).build()).execute()
         if (!response.isSuccessful) return Result.retry()
 
         val body = response.body?.string() ?: return Result.success()
-        val json = JSONObject(body)
-        val results = json.optJSONArray("results") ?: return Result.success()
-        if (results.length() == 0) return Result.success()
+        val results = JSONObject(body).optJSONArray("results") ?: return Result.success()
 
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val newNews = mutableListOf<News>()
@@ -67,23 +60,43 @@ class NewsBackgroundWorker(
         for (i in 0 until results.length()) {
             val item = results.getJSONObject(i)
 
-            val pubDateRaw = item.optString("pubDate")
-            val parsedDate: Date? = try {
-                if (pubDateRaw.isNotBlank()) dateFormat.parse(pubDateRaw) else null
-            } catch (e: Exception) {
-                null
-            }
+            val pubDate = item.optString("pubDate")
+            val fetchedAtRaw = item.optString("fetched_at")
+
+            val parsedPubDate = runCatching {
+                if (pubDate.isNotBlank()) dateFormat.parse(pubDate) else null
+            }.getOrNull()
+
+            val parsedFetchedAt = runCatching {
+                if (fetchedAtRaw.isNotBlank()) dateFormat.parse(fetchedAtRaw) else Date()
+            }.getOrNull() ?: Date()
 
             val news = News(
                 title = item.optString("title"),
                 content = item.optString("description"),
                 url = item.optString("link"),
-                date = parsedDate,
-                country = item.optString("country")
+                date = parsedPubDate,
+                fetchedAt = parsedFetchedAt,
+                country = item.optJSONArray("country")?.toString() ?: "",
+                keywords = item.optJSONArray("keywords")?.let { arr ->
+                    List(arr.length()) { idx -> arr.optString(idx) }
+                } ?: emptyList(),
+                creator = item.optJSONArray("creator")?.let { arr ->
+                    List(arr.length()) { idx -> arr.optString(idx) }
+                } ?: emptyList(),
+                categories = item.optJSONArray("category")?.let { arr ->
+                    List(arr.length()) { idx -> arr.optString(idx) }
+                } ?: emptyList(),
+                imageUrl = item.optString("image_url"),
+                videoUrl = item.optString("video_url"),
+                sourceId = item.optString("source_id"),
+                sourceName = item.optString("source_name"),
+                sourceIcon = item.optString("source_icon")
             )
 
-            val inserted = newsRepository.saveNewsIfNotExists(news)
-            if (inserted) newNews.add(news)
+            if (newsRepository.saveNewsIfNotExists(news)) {
+                newNews.add(news)
+            }
         }
 
         if (newNews.isNotEmpty() && !NewsScreenTracker.isNewsScreenVisible && !forceRefresh) {
@@ -92,6 +105,7 @@ class NewsBackgroundWorker(
 
         return Result.success()
     }
+
 
     private fun showNotification(news: News) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
