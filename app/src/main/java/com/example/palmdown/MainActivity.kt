@@ -17,7 +17,7 @@ import com.example.palmdown.ui.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.example.palmdown.ui.main.NewsScreen
 import com.example.palmdown.ui.main.SettingsScreen
-//import com.example.palmdown.worker.MockWorkerScheduler
+import com.example.palmdown.worker.MockWorkerScheduler
 import com.example.palmdown.worker.NewsWorkerScheduler
 
 
