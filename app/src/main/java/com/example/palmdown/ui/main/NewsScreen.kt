@@ -76,7 +76,6 @@ fun NewsScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
 
-            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -162,9 +161,7 @@ fun NewsScreen(
                 else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(filteredNews) { news ->
                         NewsListItem(news)
-                        Spacer(modifier = Modifier.height(8.dp))
                         Divider(color = Color(0xFFCCCCCC), thickness = 0.5.dp)
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
@@ -195,7 +192,6 @@ private fun NewsListItem(news: News) {
             val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
         }
-        .padding(vertical = 8.dp)
     ) {
         Text(
             text = news.title,
@@ -205,9 +201,9 @@ private fun NewsListItem(news: News) {
             fontSize = 20.sp
         )
         if (safeContent.isNotBlank()) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(safeContent, style = MaterialTheme.typography.bodyMedium, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(8.dp)) // space after content
+            Spacer(modifier = Modifier.height(16.dp))
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(DateUtils.formatDate(news.date), style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
@@ -215,6 +211,7 @@ private fun NewsListItem(news: News) {
             val country = formatCountrySingle(news.country)
             if (country.isNotBlank()) Text(country, style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
         }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
