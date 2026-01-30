@@ -5,6 +5,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.Create
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -14,19 +21,17 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.palmdown.ui.notes.NotesScreen
 import com.example.palmdown.ui.welcome.WelcomeActivity
-import com.google.firebase.auth.FirebaseAuth
 import com.example.palmdown.ui.main.NewsScreen
 import com.example.palmdown.ui.main.SettingsScreen
-//import com.example.palmdown.worker.MockWorkerScheduler
 import com.example.palmdown.worker.NewsWorkerScheduler
-
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NewsWorkerScheduler.scheduleDailyNews(this)
-        //MockWorkerScheduler.scheduleMockNews(this)
+
         setContent {
             MaterialTheme {
                 MainScaffold()
@@ -46,7 +51,7 @@ private fun MainScaffold() {
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = "notes",
+            startDestination = "news",
             modifier = Modifier.padding(paddingValues)
         ) {
             composable("notes") {
@@ -83,19 +88,45 @@ private fun BottomBar(navController: androidx.navigation.NavHostController) {
             selected = currentRoute == "notes",
             onClick = { navController.navigate("notes") },
             label = { Text("Notes") },
-            icon = {}
+            icon = {
+                Icon(
+                    imageVector = if (currentRoute == "notes")
+                        Icons.Filled.Create
+                    else
+                        Icons.Outlined.Create,
+                    contentDescription = "Notes"
+                )
+            }
         )
+
         NavigationBarItem(
             selected = currentRoute == "news",
             onClick = { navController.navigate("news") },
             label = { Text("News") },
-            icon = {}
+            icon = {
+                Icon(
+                    imageVector = if (currentRoute == "news")
+                        Icons.Filled.Article
+                    else
+                        Icons.Outlined.Article,
+                    contentDescription = "News"
+                )
+            }
         )
+
         NavigationBarItem(
             selected = currentRoute == "settings",
             onClick = { navController.navigate("settings") },
             label = { Text("Settings") },
-            icon = {}
+            icon = {
+                Icon(
+                    imageVector = if (currentRoute == "settings")
+                        Icons.Filled.Settings
+                    else
+                        Icons.Outlined.Settings,
+                    contentDescription = "Settings"
+                )
+            }
         )
     }
 }
