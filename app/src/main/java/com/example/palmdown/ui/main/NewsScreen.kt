@@ -2,9 +2,13 @@ package com.example.palmdown.ui.main
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,7 +22,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -54,6 +60,8 @@ fun NewsScreen(
     var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
     var menuExpanded by remember { mutableStateOf(false) }
     var searchExpanded by remember { mutableStateOf(false) }
+
+    var focusedNewsId by remember { mutableStateOf<String?>(null) }
 
     val filteredNews = remember(newsList, searchQuery.text) {
         if (searchQuery.text.isBlank()) newsList
@@ -123,7 +131,6 @@ fun NewsScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Custom search bar
             AnimatedVisibility(visible = searchExpanded) {
                 Box(
                     modifier = Modifier
@@ -160,7 +167,13 @@ fun NewsScreen(
                 filteredNews.isEmpty() -> EmptyNewsTutorial()
                 else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(filteredNews) { news ->
-                        NewsListItem(news)
+                        NewsListItem(
+                            news = news,
+                            isFocused = focusedNewsId == news.id,
+                            dimmed = focusedNewsId != null && focusedNewsId != news.id,
+                            onLongPressActivated = { focusedNewsId = news.id },
+                            onMenuDismiss = { focusedNewsId = null }
+                        )
                         Divider(color = Color(0xFFCCCCCC), thickness = 0.5.dp)
                     }
                 }
@@ -179,19 +192,56 @@ private fun EmptyNewsTutorial() {
 }
 
 @Composable
-private fun NewsListItem(news: News) {
+private fun NewsListItem(
+    news: News,
+    isFocused: Boolean,
+    dimmed: Boolean,
+    onLongPressActivated: () -> Unit,
+    onMenuDismiss: () -> Unit
+) {
     val context = LocalContext.current
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val alpha by animateFloatAsState(
+        targetValue = when {
+            dimmed -> 0.35f
+            isPressed && !isFocused -> 0.6f
+            else -> 1f
+        },
+        label = "alpha"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.04f else 1f,
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = 300f),
+        label = "pop"
+    )
+
     val safeContent = news.content.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) } ?: ""
 
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .clickable {
-            if (news.url.isBlank()) return@clickable
-            val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
-        }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(alpha)
+            .scale(scale)
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {
+                    if (news.url.isBlank()) return@combinedClickable
+                    val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
+                },
+                onLongClick = {
+                    onLongPressActivated()
+                    menuExpanded = true
+                }
+            )
     ) {
         Text(
             text = news.title,
@@ -200,6 +250,30 @@ private fun NewsListItem(news: News) {
             fontFamily = FontFamily.Serif,
             fontSize = 20.sp
         )
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = {
+                menuExpanded = false
+                onMenuDismiss()
+            }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Create note") },
+                onClick = {
+                    menuExpanded = false
+                    onMenuDismiss()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Archive") },
+                onClick = {
+                    menuExpanded = false
+                    onMenuDismiss()
+                }
+            )
+        }
+
         if (safeContent.isNotBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(safeContent, style = MaterialTheme.typography.bodyMedium, fontSize = 16.sp)
