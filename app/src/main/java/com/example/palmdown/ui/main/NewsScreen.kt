@@ -22,11 +22,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.palmdown.model.News
 import com.example.palmdown.ui.archive.NewsArchiveActivity
@@ -85,6 +87,8 @@ fun NewsScreen(
                         text = "News",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 28.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -156,7 +160,9 @@ fun NewsScreen(
                 )
                 filteredNews.isEmpty() -> EmptyNewsTutorial()
                 else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(filteredNews) { news -> NewsListItem(news)
+                    items(filteredNews) { news ->
+                        NewsListItem(news)
+                        Spacer(modifier = Modifier.height(8.dp))
                         Divider(color = Color(0xFFCCCCCC), thickness = 0.5.dp)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -169,9 +175,9 @@ fun NewsScreen(
 @Composable
 private fun EmptyNewsTutorial() {
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = "No news found", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+        Text(text = "No news found", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Serif, fontSize = 22.sp)
         Spacer(modifier = Modifier.height(12.dp))
-        Text(text = "Try refreshing or changing your search.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = "Try refreshing or changing your search.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
     }
 }
 
@@ -194,18 +200,20 @@ private fun NewsListItem(news: News) {
         Text(
             text = news.title,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Serif,
+            fontSize = 20.sp
         )
         if (safeContent.isNotBlank()) {
             Spacer(modifier = Modifier.height(4.dp))
-            Text(safeContent, style = MaterialTheme.typography.bodySmall)
+            Text(safeContent, style = MaterialTheme.typography.bodyMedium, fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(8.dp)) // space after content
         }
-        Spacer(modifier = Modifier.height(4.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(DateUtils.formatDate(news.date), style = MaterialTheme.typography.labelSmall)
-            Text(news.date?.let { timeFormat.format(it) } ?: "", style = MaterialTheme.typography.labelSmall)
+            Text(DateUtils.formatDate(news.date), style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
+            Text(news.date?.let { timeFormat.format(it) } ?: "", style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
             val country = formatCountrySingle(news.country)
-            if (country.isNotBlank()) Text(country, style = MaterialTheme.typography.labelSmall)
+            if (country.isNotBlank()) Text(country, style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
         }
     }
 }
