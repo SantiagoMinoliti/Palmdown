@@ -2,7 +2,7 @@ package com.example.palmdown.ui.main
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -15,7 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -23,16 +24,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -58,7 +63,6 @@ fun NewsScreen(
     val errorMessage by viewModel.error.collectAsState()
 
     var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
-    var menuExpanded by remember { mutableStateOf(false) }
     var searchExpanded by remember { mutableStateOf(false) }
 
     var focusedNewsId by remember { mutableStateOf<String?>(null) }
@@ -108,24 +112,6 @@ fun NewsScreen(
                     IconButton(onClick = { viewModel.refresh(context, forceRefresh = true) }, enabled = !isLoading) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
-                    Box {
-                        IconButton(onClick = { menuExpanded = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                        }
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Archived", color = MaterialTheme.colorScheme.onPrimaryContainer) },
-                                onClick = {
-                                    menuExpanded = false
-                                    context.startActivity(Intent(context, NewsArchiveActivity::class.java))
-                                }
-                            )
-                        }
-                    }
                 }
             }
 
@@ -136,8 +122,7 @@ fun NewsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 12.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -203,6 +188,10 @@ private fun NewsListItem(
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     var menuExpanded by remember { mutableStateOf(false) }
+    var pressOffset by remember { mutableStateOf(Offset.Zero) }
+    var fixedMenuOffset by remember { mutableStateOf<Offset?>(null) }
+
+    val density = LocalDensity.current
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -224,11 +213,28 @@ private fun NewsListItem(
 
     val safeContent = news.content.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) } ?: ""
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(alpha)
             .scale(scale)
+            .onGloballyPositioned { coords ->
+                if (fixedMenuOffset == null) {
+                    val windowOffset = coords.localToWindow(Offset.Zero)
+                    pressOffset = windowOffset
+                }
+            }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull() ?: continue
+                        if (fixedMenuOffset == null) {
+                            pressOffset = pressOffset + change.position
+                        }
+                    }
+                }
+            }
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -239,53 +245,81 @@ private fun NewsListItem(
                 },
                 onLongClick = {
                     onLongPressActivated()
+                    fixedMenuOffset = pressOffset
                     menuExpanded = true
                 }
             )
     ) {
-        Text(
-            text = news.title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Serif,
-            fontSize = 20.sp
-        )
+        Column {
+            Text(
+                text = news.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif,
+                fontSize = 20.sp
+            )
 
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = {
-                menuExpanded = false
-                onMenuDismiss()
+            if (safeContent.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(safeContent, style = MaterialTheme.typography.bodyMedium, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(16.dp))
             }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Create note") },
-                onClick = {
-                    menuExpanded = false
-                    onMenuDismiss()
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("Archive") },
-                onClick = {
-                    menuExpanded = false
-                    onMenuDismiss()
-                }
-            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(DateUtils.formatDate(news.date), style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
+                Text(news.date?.let { timeFormat.format(it) } ?: "", style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
+                val country = formatCountrySingle(news.country)
+                if (country.isNotBlank()) Text(country, style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
+            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        if (safeContent.isNotBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(safeContent, style = MaterialTheme.typography.bodyMedium, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(16.dp))
+        // DropdownMenu fisso appena compare
+        fixedMenuOffset?.let { offset ->
+            Box {
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = {
+                        menuExpanded = false
+                        fixedMenuOffset = null
+                        onMenuDismiss()
+                    },
+                    offset = DpOffset(x = with(density) { offset.x.toDp() }, y = with(density) { offset.y.toDp() }),
+                    modifier = Modifier
+                        .background(Color.White, RoundedCornerShape(10.dp))
+                        .widthIn(min = 180.dp)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Create note from this news", fontSize = 13.sp)
+                            }
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            fixedMenuOffset = null
+                            onMenuDismiss()
+                        }
+                    )
+                    Divider(color = Color.LightGray.copy(alpha = 0.3f), thickness = 0.25.dp)
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Put news in archive", fontSize = 13.sp)
+                            }
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            fixedMenuOffset = null
+                            onMenuDismiss()
+                        }
+                    )
+                }
+            }
         }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(DateUtils.formatDate(news.date), style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
-            Text(news.date?.let { timeFormat.format(it) } ?: "", style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
-            val country = formatCountrySingle(news.country)
-            if (country.isNotBlank()) Text(country, style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
-        }
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
