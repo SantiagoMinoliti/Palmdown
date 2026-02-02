@@ -86,8 +86,7 @@ fun NewsScreen(
                 )
             )
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-
+        Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -109,7 +108,10 @@ fun NewsScreen(
                     IconButton(onClick = { searchExpanded = !searchExpanded }) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
                     }
-                    IconButton(onClick = { viewModel.refresh(context, forceRefresh = true) }, enabled = !isLoading) {
+                    IconButton(
+                        onClick = { viewModel.refresh(context, forceRefresh = true) },
+                        enabled = !isLoading
+                    ) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
@@ -122,12 +124,19 @@ fun NewsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                        .background(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            RoundedCornerShape(8.dp)
+                        )
                         .padding(horizontal = 12.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Search, contentDescription = "Search Icon", tint = Color.Gray)
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Search Icon",
+                            tint = Color.Gray
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         BasicTextField(
                             value = searchQuery,
@@ -142,15 +151,29 @@ fun NewsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             when {
-                isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                isLoading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
+
                 errorMessage != null -> Text(
                     text = errorMessage ?: "Error while loading news",
                     color = MaterialTheme.colorScheme.error
                 )
+
                 filteredNews.isEmpty() -> EmptyNewsTutorial()
-                else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 0.dp,
+                        bottom = 0.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     items(filteredNews) { news ->
                         NewsListItem(
                             news = news,
@@ -167,12 +190,29 @@ fun NewsScreen(
     }
 }
 
+
 @Composable
 private fun EmptyNewsTutorial() {
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = "No news found", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Serif, fontSize = 22.sp)
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "No news found",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.Serif,
+            fontSize = 22.sp
+        )
         Spacer(modifier = Modifier.height(12.dp))
-        Text(text = "Try refreshing or changing your search.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
+        Text(
+            text = "Try refreshing or changing your search.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 16.sp
+        )
     }
 }
 
@@ -211,7 +251,8 @@ private fun NewsListItem(
         label = "pop"
     )
 
-    val safeContent = news.content.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) } ?: ""
+    val safeContent =
+        news.content.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) } ?: ""
 
     Box(
         modifier = Modifier
@@ -240,7 +281,8 @@ private fun NewsListItem(
                 indication = null,
                 onClick = {
                     if (news.url.isBlank()) return@combinedClickable
-                    val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
+                    val finalUrl =
+                        if (news.url.startsWith("http")) news.url else "https://${news.url}"
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
                 },
                 onLongClick = {
@@ -264,11 +306,24 @@ private fun NewsListItem(
                 Text(safeContent, style = MaterialTheme.typography.bodyMedium, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(16.dp))
             }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(DateUtils.formatDate(news.date), style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
-                Text(news.date?.let { timeFormat.format(it) } ?: "", style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    DateUtils.formatDate(news.date),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 14.sp
+                )
+                Text(news.date?.let { timeFormat.format(it) } ?: "",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 14.sp)
                 val country = formatCountrySingle(news.country)
-                if (country.isNotBlank()) Text(country, style = MaterialTheme.typography.labelSmall, fontSize = 14.sp)
+                if (country.isNotBlank()) Text(
+                    country,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 14.sp
+                )
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -283,7 +338,9 @@ private fun NewsListItem(
                         fixedMenuOffset = null
                         onMenuDismiss()
                     },
-                    offset = DpOffset(x = with(density) { offset.x.toDp() }, y = with(density) { offset.y.toDp() }),
+                    offset = DpOffset(
+                        x = with(density) { offset.x.toDp() },
+                        y = with(density) { offset.y.toDp() }),
                     modifier = Modifier
                         .background(Color.White, RoundedCornerShape(10.dp))
                         .widthIn(min = 180.dp)
@@ -291,7 +348,11 @@ private fun NewsListItem(
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
                                 Spacer(Modifier.width(6.dp))
                                 Text("Create note from this news", fontSize = 13.sp)
                             }
@@ -306,7 +367,11 @@ private fun NewsListItem(
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(
+                                    Icons.Default.Archive,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
                                 Spacer(Modifier.width(6.dp))
                                 Text("Put news in archive", fontSize = 13.sp)
                             }
@@ -329,5 +394,6 @@ private fun formatCountrySingle(raw: String): String {
     val first = cleaned.split(",").firstOrNull()?.trim() ?: return ""
     val lower = first.lowercase(Locale.getDefault())
     val lowercaseWords = setOf("of", "and", "the")
-    return lower.split(" ").joinToString(" ") { word -> if (word in lowercaseWords) word else word.replaceFirstChar { it.uppercase() } }
+    return lower.split(" ")
+        .joinToString(" ") { word -> if (word in lowercaseWords) word else word.replaceFirstChar { it.uppercase() } }
 }
