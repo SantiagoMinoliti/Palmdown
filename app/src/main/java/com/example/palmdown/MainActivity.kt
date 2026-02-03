@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Create
@@ -16,7 +15,6 @@ import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -94,76 +92,81 @@ private fun ModernBottomBar(navController: NavHostController) {
 
     val barGradient = Brush.horizontalGradient(
         colors = listOf(
-            Color(0xFF7B5CFF), // viola
-            Color(0xFF9C7DFF), // lilla
-            Color(0xFF5ED6E6)  // ciano
+            Color(0xFF632F96), // viola
+            Color(0xFF373999), // lilla
         )
     )
 
     NavigationBar(
         modifier = Modifier
             .fillMaxWidth()
-            .height(76.dp)
-            .background(barGradient),
+            .height(88.dp)
+            .background(barGradient)
+            .padding(top = 12.dp),
         containerColor = Color.Transparent,
         tonalElevation = 0.dp
     ) {
-        Spacer(modifier = Modifier.height(6.dp))
-
-        IconOnlyItem(
+        NavigationBarItem(
             selected = currentRoute == "notes",
             onClick = { navController.navigate("notes") },
-            iconSelected = Icons.Filled.Create,
-            iconUnselected = Icons.Outlined.Create
+            icon = {
+                Icon(
+                    imageVector = if (currentRoute == "notes") Icons.Filled.Create else Icons.Outlined.Create,
+                    contentDescription = "Notes",
+                    tint = if (currentRoute == "notes") Color.White else Color.White.copy(alpha = 0.6f)
+                )
+            },
+            label = { Text("Notes") },
+            alwaysShowLabel = true,
+            colors = NavigationBarItemDefaults.colors(
+                indicatorColor = Color.Transparent,
+                selectedIconColor = Color.White,
+                unselectedIconColor = Color.White.copy(alpha = 0.6f),
+                selectedTextColor = Color.White,
+                unselectedTextColor = Color.White.copy(alpha = 0.6f)
+            )
         )
 
-        IconOnlyItem(
+        NavigationBarItem(
             selected = currentRoute == "news",
             onClick = { navController.navigate("news") },
-            iconSelected = Icons.Filled.Article,
-            iconUnselected = Icons.Outlined.Article
+            icon = {
+                Icon(
+                    imageVector = if (currentRoute == "news") Icons.Filled.Article else Icons.Outlined.Article,
+                    contentDescription = "News",
+                    tint = if (currentRoute == "news") Color.White else Color.White.copy(alpha = 0.6f)
+                )
+            },
+            label = { Text("News") },
+            alwaysShowLabel = true,
+            colors = NavigationBarItemDefaults.colors(
+                indicatorColor = Color.Transparent,
+                selectedIconColor = Color.White,
+                unselectedIconColor = Color.White.copy(alpha = 0.6f),
+                selectedTextColor = Color.White,
+                unselectedTextColor = Color.White.copy(alpha = 0.6f)
+            )
         )
 
-        IconOnlyItem(
+        NavigationBarItem(
             selected = currentRoute == "settings",
             onClick = { navController.navigate("settings") },
-            iconSelected = Icons.Filled.Settings,
-            iconUnselected = Icons.Outlined.Settings
+            icon = {
+                Icon(
+                    imageVector = if (currentRoute == "settings") Icons.Filled.Settings else Icons.Outlined.Settings,
+                    contentDescription = "Preferences",
+                    tint = if (currentRoute == "settings") Color.White else Color.White.copy(alpha = 0.6f)
+                )
+            },
+            label = { Text("Preferences") },
+            alwaysShowLabel = true,
+            colors = NavigationBarItemDefaults.colors(
+                indicatorColor = Color.Transparent,
+                selectedIconColor = Color.White,
+                unselectedIconColor = Color.White.copy(alpha = 0.6f),
+                selectedTextColor = Color.White,
+                unselectedTextColor = Color.White.copy(alpha = 0.6f)
+            )
         )
     }
-}
-
-@Composable
-private fun RowScope.IconOnlyItem(
-    selected: Boolean,
-    onClick: () -> Unit,
-    iconSelected: androidx.compose.ui.graphics.vector.ImageVector,
-    iconUnselected: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    NavigationBarItem(
-        selected = selected,
-        onClick = onClick,
-        icon = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .size(44.dp)
-                    .background(
-                        color = if (selected) Color.White.copy(alpha = 0.22f) else Color.Transparent,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (selected) iconSelected else iconUnselected,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-            }
-        },
-        alwaysShowLabel = false,
-        colors = NavigationBarItemDefaults.colors(
-            indicatorColor = Color.Transparent
-        )
-    )
 }
