@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -32,6 +33,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -42,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.palmdown.model.News
-import com.example.palmdown.ui.archive.NewsArchiveActivity
 import com.example.palmdown.utils.DateUtils
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -87,68 +88,109 @@ fun NewsScreen(
             )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "News",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.Serif,
-                        fontSize = 28.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            // Compact Title section with modern search bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xFFFFFFFF), Color(0xFFF3ECFA))
+                        )
                     )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { searchExpanded = !searchExpanded }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                    }
-                    IconButton(
-                        onClick = { viewModel.refresh(context, forceRefresh = true) },
-                        enabled = !isLoading
+                    .padding(horizontal = 16.dp, vertical = 4.dp) // very compact vertical padding
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "News",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = FontFamily.Serif,
+                                fontSize = 28.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { searchExpanded = !searchExpanded }) {
+                                Icon(Icons.Default.Search, contentDescription = "Search")
+                            }
+                            IconButton(
+                                onClick = { viewModel.refresh(context, forceRefresh = true) },
+                                enabled = !isLoading
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Modern slide-down search bar
+                    androidx.compose.animation.AnimatedVisibility(visible = searchExpanded) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(32.dp) // more compact
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(Color.White, Color(0xFFF7F7FB))
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = Color(0xFFBDB6D5),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = "Search Icon",
+                                        tint = Color(0xFF7A75A1)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    BasicTextField(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        singleLine = true,
+                                        textStyle = TextStyle(
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 14.sp
+                                        ),
+                                        decorationBox = { innerTextField ->
+                                            if (searchQuery.text.isEmpty()) {
+                                                Text(
+                                                    text = "Search news...",
+                                                    color = Color(0xFFAAA7C3),
+                                                    fontSize = 14.sp
+                                                )
+                                            }
+                                            innerTextField()
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            AnimatedVisibility(visible = searchExpanded) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                            RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = "Search Icon",
-                            tint = Color.Gray
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            singleLine = true,
-                            textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             when {
                 isLoading -> Box(
