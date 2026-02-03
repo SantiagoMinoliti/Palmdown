@@ -103,11 +103,13 @@ private fun ModernBottomBar(navController: NavHostController) {
     NavigationBar(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(76.dp)
             .background(barGradient),
         containerColor = Color.Transparent,
         tonalElevation = 0.dp
     ) {
+        Spacer(modifier = Modifier.height(6.dp))
+
         IconOnlyItem(
             selected = currentRoute == "notes",
             onClick = { navController.navigate("notes") },
@@ -144,9 +146,10 @@ private fun RowScope.IconOnlyItem(
         icon = {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .padding(top = 8.dp)
+                    .size(44.dp)
                     .background(
-                        color = if (selected) Color.White.copy(alpha = 0.25f) else Color.Transparent,
+                        color = if (selected) Color.White.copy(alpha = 0.22f) else Color.Transparent,
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
