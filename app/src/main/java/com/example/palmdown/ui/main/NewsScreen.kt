@@ -70,21 +70,14 @@ fun NewsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color.White, Color(0xFFFAFAFA))
-                )
+                Brush.verticalGradient(colors = listOf(Color.White, Color(0xFFFAFAFA)))
             )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header + search
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.White, Color(0xFFF3ECFA))
-                        )
-                    )
+                    .background(Brush.verticalGradient(colors = listOf(Color.White, Color(0xFFF3ECFA))))
                     .padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
                 Column {
@@ -100,7 +93,7 @@ fun NewsScreen(
                             fontFamily = FontFamily.Serif,
                             fontSize = 28.sp
                         )
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = { searchExpanded = !searchExpanded }) {
                                 Icon(Icons.Default.Search, contentDescription = null)
                             }
@@ -120,8 +113,20 @@ fun NewsScreen(
                         )
                     }
 
+                    val sortedCategories = remember(categories) {
+                        val list = mutableListOf<String>()
+                        list.add("all")
+                        if (categories.any { it.equals("top", true) }) list.add("top")
+                        categories.filter { !it.equals("top", true) }
+                            .map { it.lowercase(Locale.getDefault()) }
+                            .distinct()
+                            .sorted()
+                            .forEach { list.add(it) }
+                        list
+                    }
+
                     CategoryRow(
-                        categories = listOf("all") + categories,
+                        categories = sortedCategories,
                         selected = activeFilter.category.ifBlank { "all" },
                         onSelected = viewModel::updateCategory
                     )
@@ -148,7 +153,10 @@ fun NewsScreen(
                 ) {
                     items(newsList) { news ->
                         NewsListItem(
-                            news = news,
+                            news = news.copy(
+                                title = news.title?.let { if (it.length > 128) it.take(128) + "…" else it } ?: "",
+                                content = news.content?.let { if (it.length > 192) it.take(192) + "…" else it } ?: ""
+                            ),
                             isFocused = focusedNewsId == news.id,
                             dimmed = focusedNewsId != null && focusedNewsId != news.id,
                             onLongPressActivated = { focusedNewsId = news.id },
@@ -162,224 +170,206 @@ fun NewsScreen(
     }
 }
 
-// --- everything below unchanged ---
 
 
-@Composable
-private fun ModernSearchBar(
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 6.dp)
-            .height(32.dp)
-            .background(
-                Brush.verticalGradient(listOf(Color.White, Color(0xFFF7F7FB))),
-                RoundedCornerShape(8.dp)
-            )
-            .border(1.dp, Color(0xFFBDB6D5), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF7A75A1))
-            Spacer(Modifier.width(6.dp))
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                singleLine = true,
-                textStyle = TextStyle(fontSize = 14.sp),
-                modifier = Modifier.weight(1f),
-                decorationBox = { inner ->
-                    if (value.isBlank()) {
-                        Text("Search news...", color = Color(0xFFAAA7C3), fontSize = 14.sp)
+    @Composable
+    private fun ModernSearchBar(value: String, onValueChange: (String) -> Unit) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp)
+                .height(32.dp)
+                .background(Brush.verticalGradient(listOf(Color.White, Color(0xFFF7F7FB))), RoundedCornerShape(8.dp))
+                .border(1.dp, Color(0xFFBDB6D5), RoundedCornerShape(8.dp))
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF7A75A1))
+                Spacer(Modifier.width(6.dp))
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = 14.sp),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (value.isBlank()) {
+                            Text("Search news...", color = Color(0xFFAAA7C3), fontSize = 14.sp)
+                        }
+                        inner()
                     }
-                    inner()
-                }
-            )
-            if (value.isNotBlank()) {
-                IconButton(onClick = { onValueChange("") }) {
-                    Icon(Icons.Default.Clear, contentDescription = null)
+                )
+                if (value.isNotBlank()) {
+                    IconButton(onClick = { onValueChange("") }) {
+                        Icon(Icons.Default.Clear, contentDescription = null)
+                    }
                 }
             }
         }
     }
-}
 
-@Composable
-private fun CategoryRow(
-    categories: List<String>,
-    selected: String,
-    onSelected: (String) -> Unit
-) {
-    val scrollState = rememberScrollState()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState)
-            .padding(top = 6.dp, bottom = 4.dp)
-    ) {
-        categories.forEach { category ->
-            val isSelected = category.equals(selected, true)
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .clickable { onSelected(category) },
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = if (category == "all") "All" else category,
-                    fontSize = 14.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) Color(0xFF632F96) else Color.Gray
-                )
-                Spacer(Modifier.height(2.dp))
-                Box(
+    @Composable
+    private fun CategoryRow(categories: List<String>, selected: String, onSelected: (String) -> Unit) {
+        val scrollState = rememberScrollState()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState)
+                .padding(top = 6.dp, bottom = 4.dp)
+        ) {
+            categories.forEach { category ->
+                val isSelected = category.equals(selected, true)
+                Column(
                     modifier = Modifier
-                        .height(2.dp)
-                        .width(24.dp)
-                        .background(if (isSelected) Color(0xFF632F96) else Color.Transparent)
-                )
+                        .padding(horizontal = 8.dp)
+                        .clickable { onSelected(category) },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = category.replaceFirstChar { it.uppercaseChar() },
+                        fontSize = 14.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) Color(0xFF632F96) else Color.Gray
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .height(2.dp)
+                            .width(24.dp)
+                            .background(if (isSelected) Color(0xFF632F96) else Color.Transparent)
+                    )
+                }
             }
         }
     }
-}
 
-@Composable
-private fun EmptyNewsTutorial() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "No news found",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.Serif,
-            fontSize = 22.sp
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "Try refreshing or changing your filters.",
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 16.sp
-        )
+    @Composable
+    private fun EmptyNewsTutorial() {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "No news found",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.Serif,
+                fontSize = 22.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Try refreshing or changing your filters.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 16.sp
+            )
+        }
     }
-}
 
-@Composable
-private fun NewsListItem(
-    news: News,
-    isFocused: Boolean,
-    dimmed: Boolean,
-    onLongPressActivated: () -> Unit,
-    onMenuDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    @Composable
+    private fun NewsListItem(
+        news: News,
+        isFocused: Boolean,
+        dimmed: Boolean,
+        onLongPressActivated: () -> Unit,
+        onMenuDismiss: () -> Unit
+    ) {
+        val context = LocalContext.current
+        val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
-    var menuExpanded by remember { mutableStateOf(false) }
-    var pressOffset by remember { mutableStateOf(Offset.Zero) }
-    var fixedMenuOffset by remember { mutableStateOf<Offset?>(null) }
+        var menuExpanded by remember { mutableStateOf(false) }
+        var pressOffset by remember { mutableStateOf(Offset.Zero) }
+        var fixedMenuOffset by remember { mutableStateOf<Offset?>(null) }
 
-    val density = LocalDensity.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+        val density = LocalDensity.current
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
 
-    val alpha by animateFloatAsState(
-        targetValue = when {
-            dimmed -> 0.35f
-            isPressed && !isFocused -> 0.6f
-            else -> 1f
-        },
-        label = "alpha"
-    )
+        val alpha by animateFloatAsState(
+            targetValue = when {
+                dimmed -> 0.35f
+                isPressed && !isFocused -> 0.6f
+                else -> 1f
+            },
+            label = "alpha"
+        )
 
-    val scale by animateFloatAsState(
-        targetValue = if (isFocused) 1.04f else 1f,
-        animationSpec = spring(dampingRatio = 0.45f, stiffness = 300f),
-        label = "pop"
-    )
+        val scale by animateFloatAsState(
+            targetValue = if (isFocused) 1.04f else 1f,
+            animationSpec = spring(dampingRatio = 0.45f, stiffness = 300f),
+            label = "pop"
+        )
 
-    val safeContent = news.content.takeUnless { it.isBlank() || it.equals("null", true) } ?: ""
+        val safeContent = news.content.takeUnless { it.isBlank() || it.equals("null", true) } ?: ""
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(alpha)
-            .scale(scale)
-            .onGloballyPositioned { coords ->
-                if (fixedMenuOffset == null) {
-                    pressOffset = coords.localToWindow(Offset.Zero)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(alpha)
+                .scale(scale)
+                .onGloballyPositioned { coords ->
+                    if (fixedMenuOffset == null) pressOffset = coords.localToWindow(Offset.Zero)
                 }
-            }
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull() ?: continue
-                        if (fixedMenuOffset == null) {
-                            pressOffset += change.position
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull() ?: continue
+                            if (fixedMenuOffset == null) pressOffset += change.position
                         }
                     }
                 }
-            }
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = {
-                    if (news.url.isBlank()) return@combinedClickable
-                    val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
-                },
-                onLongClick = {
-                    onLongPressActivated()
-                    fixedMenuOffset = pressOffset
-                    menuExpanded = true
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = {
+                        if (news.url.isBlank()) return@combinedClickable
+                        val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
+                    },
+                    onLongClick = {
+                        onLongPressActivated()
+                        fixedMenuOffset = pressOffset
+                        menuExpanded = true
+                    }
+                )
+        ) {
+            Column {
+                Text(news.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
+                if (safeContent.isNotBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(safeContent, fontSize = 16.sp)
+                    Spacer(Modifier.height(16.dp))
                 }
-            )
-    ) {
-        Column {
-            Text(news.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
-            if (safeContent.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(safeContent, fontSize = 16.sp)
-                Spacer(Modifier.height(16.dp))
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                    Text(DateUtils.formatDate(news.date), fontSize = 14.sp)
+                    Text(news.date?.let { timeFormat.format(it) } ?: "", fontSize = 14.sp)
+                }
+                Spacer(Modifier.height(24.dp))
             }
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                Text(DateUtils.formatDate(news.date), fontSize = 14.sp)
-                Text(news.date?.let { timeFormat.format(it) } ?: "", fontSize = 14.sp)
-            }
-            Spacer(Modifier.height(24.dp))
-        }
 
-        fixedMenuOffset?.let { offset ->
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = {
-                    menuExpanded = false
-                    fixedMenuOffset = null
-                    onMenuDismiss()
-                },
-                offset = DpOffset(
-                    x = with(density) { offset.x.toDp() },
-                    y = with(density) { offset.y.toDp() }
-                )
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Create note from this news", fontSize = 13.sp) },
-                    onClick = { onMenuDismiss(); menuExpanded = false; fixedMenuOffset = null }
-                )
-                DropdownMenuItem(
-                    text = { Text("Put news in archive", fontSize = 13.sp) },
-                    onClick = { onMenuDismiss(); menuExpanded = false; fixedMenuOffset = null }
-                )
+            fixedMenuOffset?.let { offset ->
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = {
+                        menuExpanded = false
+                        fixedMenuOffset = null
+                        onMenuDismiss()
+                    },
+                    offset = DpOffset(x = with(density) { offset.x.toDp() }, y = with(density) { offset.y.toDp() })
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Create note from this news", fontSize = 13.sp) },
+                        onClick = { onMenuDismiss(); menuExpanded = false; fixedMenuOffset = null }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Put news in archive", fontSize = 13.sp) },
+                        onClick = { onMenuDismiss(); menuExpanded = false; fixedMenuOffset = null }
+                    )
+                }
             }
         }
     }
-}
