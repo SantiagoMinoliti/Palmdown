@@ -19,10 +19,6 @@ class NewsViewModel(
     private val repository: NewsRepository = NewsRepository()
 ) : ViewModel() {
 
-    /* --------------------
-     *  STATE
-     * -------------------- */
-
     private val _news = MutableStateFlow<List<News>>(emptyList())
     val news: StateFlow<List<News>> = _news
 
@@ -38,28 +34,15 @@ class NewsViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    /* --------------------
-     *  INIT
-     * -------------------- */
-
     init {
         viewModelScope.launch {
-            // 1. fetch persisted filters (non-blocking fallback already set)
             try {
                 _filters.value = repository.fetchSavedFilters()
             } catch (_: Exception) {}
-
-            // 2. load categories (derived only from existing news)
             loadCategories()
-
-            // 3. load news with active filters
             loadNews()
         }
     }
-
-    /* --------------------
-     *  FILTER UPDATES (UI -> VM)
-     * -------------------- */
 
     fun updateQuery(query: String) {
         updateFilters(_filters.value.copy(query = query))
@@ -73,7 +56,6 @@ class NewsViewModel(
         _filters.value = newFilters
 
         viewModelScope.launch {
-            // persist filters, but never block UI
             try {
                 repository.updateFilters(newFilters)
             } catch (_: Exception) {}
@@ -108,10 +90,6 @@ class NewsViewModel(
             _categories.value = emptyList()
         }
     }
-
-    /* --------------------
-     *  REFRESH
-     * -------------------- */
 
     fun refresh(context: Context, forceRefresh: Boolean = false) {
         _isLoading.value = true

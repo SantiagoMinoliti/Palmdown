@@ -29,10 +29,6 @@ class NewsRepository {
         ?.collection("filters")
         ?.document("filterset")
 
-    /* --------------------
-     *  NEWS
-     * -------------------- */
-
     suspend fun saveNewsIfNotExists(news: News): Boolean {
         return try {
             val collection = getUserNewsCollection() ?: return false
@@ -72,10 +68,6 @@ class NewsRepository {
         }
     }
 
-    /**
-     * Returns filtered news based on category and query.
-     * If category is "all" or blank, fetch all news without filtering by category.
-     */
     suspend fun getAllNews(filter: NewsFilter): List<News> {
         return try {
             val collection = getUserNewsCollection() ?: return emptyList()
@@ -111,10 +103,6 @@ class NewsRepository {
         }
     }
 
-    /**
-     * Fetches all distinct categories present in the user's news.
-     * Ensures each category returned has at least one news item.
-     */
     suspend fun fetchAllCategories(): List<String> {
         return try {
             val collection = getUserNewsCollection() ?: return emptyList()
@@ -133,10 +121,6 @@ class NewsRepository {
             emptyList()
         }
     }
-
-    /* --------------------
-     *  FILTERS (PERSISTENT)
-     * -------------------- */
 
     suspend fun updateFilters(filters: NewsFilter) {
         val doc = getUserFiltersDocument() ?: return

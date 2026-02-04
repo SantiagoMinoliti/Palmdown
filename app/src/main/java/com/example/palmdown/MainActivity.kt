@@ -92,8 +92,8 @@ private fun ModernBottomBar(navController: NavHostController) {
 
     val barGradient = Brush.horizontalGradient(
         colors = listOf(
-            Color(0xFF632F96), // viola
-            Color(0xFF373999), // lilla
+            Color(0xFF632F96),
+            Color(0xFF373999),
         )
     )
 
