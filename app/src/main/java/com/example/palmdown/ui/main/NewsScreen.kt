@@ -327,7 +327,8 @@ fun NewsScreen(
                     indication = null,
                     onClick = {
                         if (news.url.isBlank()) return@combinedClickable
-                        val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
+                        val finalUrl =
+                            if (news.url.startsWith("http")) news.url else "https://${news.url}"
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
                     },
                     onLongClick = {
@@ -338,15 +339,22 @@ fun NewsScreen(
                 )
         ) {
             Column {
-                Text(news.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
+                Text(
+                    news.title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
+                )
                 if (safeContent.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
                     Text(safeContent, fontSize = 16.sp)
                     Spacer(Modifier.height(16.dp))
                 }
-                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(DateUtils.formatDate(news.date), fontSize = 14.sp)
                     Text(news.date?.let { timeFormat.format(it) } ?: "", fontSize = 14.sp)
+                    val country = formatCountrySingle(news.country)
+                    if (country.isNotBlank()) Text(country, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -359,7 +367,9 @@ fun NewsScreen(
                         fixedMenuOffset = null
                         onMenuDismiss()
                     },
-                    offset = DpOffset(x = with(density) { offset.x.toDp() }, y = with(density) { offset.y.toDp() })
+                    offset = DpOffset(
+                        x = with(density) { offset.x.toDp() },
+                        y = with(density) { offset.y.toDp() })
                 ) {
                     DropdownMenuItem(
                         text = { Text("Create note from this news", fontSize = 13.sp) },
@@ -373,3 +383,12 @@ fun NewsScreen(
             }
         }
     }
+
+private fun formatCountrySingle(raw: String): String {
+    if (raw.isBlank()) return ""
+    val cleaned = raw.removePrefix("[").removeSuffix("]").replace("\"", "")
+    val first = cleaned.split(",").firstOrNull()?.trim() ?: return ""
+    val lower = first.lowercase(Locale.getDefault())
+    val lowercaseWords = setOf("of", "and", "the")
+    return lower.split(" ").joinToString(" ") { word -> if (word in lowercaseWords) word else word.replaceFirstChar { it.uppercase() } }
+}
