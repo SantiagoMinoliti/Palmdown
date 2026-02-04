@@ -1,12 +1,12 @@
 package com.example.palmdown.repository
 
+import android.util.Log
 import com.example.palmdown.model.News
+import com.example.palmdown.model.NewsFilter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 class NewsRepository {
@@ -16,13 +16,22 @@ class NewsRepository {
 
     private val appId = "palmdown"
 
-    private fun getUserNewsCollection() = auth.currentUser?.uid?.let { userId ->
+    private fun getUserRoot() = auth.currentUser?.uid?.let { userId ->
         firestore.collection("artifacts")
             .document(appId)
             .collection("users")
             .document(userId)
-            .collection("news")
     }
+
+    private fun getUserNewsCollection() = getUserRoot()?.collection("news")
+
+    private fun getUserFiltersDocument() = getUserRoot()
+        ?.collection("filters")
+        ?.document("filterset")
+
+    /* --------------------
+     *  NEWS
+     * -------------------- */
 
     suspend fun saveNewsIfNotExists(news: News): Boolean {
         return try {
@@ -63,17 +72,96 @@ class NewsRepository {
         }
     }
 
-    suspend fun getAllNews(): List<News> {
+    /**
+     * Returns filtered news based on category and query.
+     * If category is "all" or blank, fetch all news without filtering by category.
+     */
+    suspend fun getAllNews(filter: NewsFilter): List<News> {
         return try {
             val collection = getUserNewsCollection() ?: return emptyList()
-            val snapshot = collection
-                .orderBy("fetchedAt", Query.Direction.DESCENDING)
-                .get()
-                .await()
 
-            snapshot.toObjects(News::class.java)
+            var query: Query = collection.orderBy("fetchedAt", Query.Direction.DESCENDING)
+
+            if (filter.category.isNotBlank() && filter.category.lowercase() != "all") {
+                query = query.whereArrayContains(
+                    "categories",
+                    filter.category.lowercase(Locale.getDefault())
+                )
+            }
+            Log.d(
+                "NewsRepo",
+                "Filtering by category='${filter.category}'"
+            )
+
+
+            val snapshot = query.get().await()
+            var news = snapshot.toObjects(News::class.java)
+
+            if (filter.query.isNotBlank()) {
+                val q = filter.query.lowercase(Locale.getDefault())
+                news = news.filter {
+                    it.title.lowercase(Locale.getDefault()).contains(q) ||
+                            it.content.lowercase(Locale.getDefault()).contains(q)
+                }
+            }
+
+            news
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    /**
+     * Fetches all distinct categories present in the user's news.
+     * Ensures each category returned has at least one news item.
+     */
+    suspend fun fetchAllCategories(): List<String> {
+        return try {
+            val collection = getUserNewsCollection() ?: return emptyList()
+            val snapshot = collection.get().await()
+            val allNews = snapshot.toObjects(News::class.java)
+
+            val categoriesSet = mutableSetOf<String>()
+            allNews.forEach { news ->
+                news.categories?.forEach { cat ->
+                    if (cat.isNotBlank()) categoriesSet.add(cat)
+                }
+            }
+
+            categoriesSet.toList().sorted()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /* --------------------
+     *  FILTERS (PERSISTENT)
+     * -------------------- */
+
+    suspend fun updateFilters(filters: NewsFilter) {
+        val doc = getUserFiltersDocument() ?: return
+
+        val payload = mapOf(
+            "query" to filters.query,
+            "category" to filters.category
+        )
+
+        doc.set(payload).await()
+    }
+
+    suspend fun fetchSavedFilters(): NewsFilter {
+        return try {
+            val doc = getUserFiltersDocument() ?: return NewsFilter()
+            val snapshot = doc.get().await()
+
+            if (!snapshot.exists()) return NewsFilter()
+
+            NewsFilter(
+                query = snapshot.getString("query") ?: "",
+                category = snapshot.getString("category") ?: "all"
+            )
+        } catch (e: Exception) {
+            NewsFilter()
         }
     }
 }
