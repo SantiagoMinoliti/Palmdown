@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -37,7 +38,13 @@ class MainActivity : ComponentActivity() {
         NewsWorkerScheduler.scheduleDailyNews(this)
 
         setContent {
-            MaterialTheme {
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    primary = Color(0xFF632F96),
+                    background = Color(0xFF121212),
+                    surface = Color(0xFF1E1B2E)
+                )
+            ) {
                 MainScaffold()
             }
         }
@@ -48,21 +55,17 @@ class MainActivity : ComponentActivity() {
 private fun MainScaffold() {
     val navController = rememberNavController()
 
-    val backgroundGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFFFFFFFF),
-            Color(0xFFFAFAFA)
-        )
-    )
+    val appBackground = Color(0xFF121212)
 
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = appBackground,
+        contentColor = Color.White,
         bottomBar = { ModernBottomBar(navController) }
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundGradient)
+                .background(appBackground)
                 .padding(paddingValues)
         ) {
             NavHost(
@@ -90,83 +93,56 @@ private fun MainScaffold() {
 private fun ModernBottomBar(navController: NavHostController) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
-    val barGradient = Brush.horizontalGradient(
+    val barGradient = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF632F96),
-            Color(0xFF373999),
+            Color(0xFF1E1B2E),
+            Color(0xFF121212)
         )
     )
 
     NavigationBar(
         modifier = Modifier
             .fillMaxWidth()
-            .height(88.dp)
-            .background(barGradient)
-            .padding(top = 12.dp),
+            .background(barGradient),
         containerColor = Color.Transparent,
-        tonalElevation = 0.dp
+        tonalElevation = 0.dp,
+        windowInsets = NavigationBarDefaults.windowInsets
     ) {
-        NavigationBarItem(
-            selected = currentRoute == "notes",
-            onClick = { navController.navigate("notes") },
-            icon = {
-                Icon(
-                    imageVector = if (currentRoute == "notes") Icons.Filled.Create else Icons.Outlined.Create,
-                    contentDescription = "Notes",
-                    tint = if (currentRoute == "notes") Color.White else Color.White.copy(alpha = 0.6f)
-                )
-            },
-            label = { Text("Notes") },
-            alwaysShowLabel = true,
-            colors = NavigationBarItemDefaults.colors(
-                indicatorColor = Color.Transparent,
-                selectedIconColor = Color.White,
-                unselectedIconColor = Color.White.copy(alpha = 0.6f),
-                selectedTextColor = Color.White,
-                unselectedTextColor = Color.White.copy(alpha = 0.6f)
-            )
+        val items = listOf(
+            Triple("notes", "Notes", Pair(Icons.Filled.Create, Icons.Outlined.Create)),
+            Triple("news", "News", Pair(Icons.Filled.Article, Icons.Outlined.Article)),
+            Triple("settings", "Preferences", Pair(Icons.Filled.Settings, Icons.Outlined.Settings))
         )
 
-        NavigationBarItem(
-            selected = currentRoute == "news",
-            onClick = { navController.navigate("news") },
-            icon = {
-                Icon(
-                    imageVector = if (currentRoute == "news") Icons.Filled.Article else Icons.Outlined.Article,
-                    contentDescription = "News",
-                    tint = if (currentRoute == "news") Color.White else Color.White.copy(alpha = 0.6f)
-                )
-            },
-            label = { Text("News") },
-            alwaysShowLabel = true,
-            colors = NavigationBarItemDefaults.colors(
-                indicatorColor = Color.Transparent,
-                selectedIconColor = Color.White,
-                unselectedIconColor = Color.White.copy(alpha = 0.6f),
-                selectedTextColor = Color.White,
-                unselectedTextColor = Color.White.copy(alpha = 0.6f)
-            )
-        )
+        items.forEach { (route, label, icons) ->
+            val isSelected = currentRoute == route
 
-        NavigationBarItem(
-            selected = currentRoute == "settings",
-            onClick = { navController.navigate("settings") },
-            icon = {
-                Icon(
-                    imageVector = if (currentRoute == "settings") Icons.Filled.Settings else Icons.Outlined.Settings,
-                    contentDescription = "Preferences",
-                    tint = if (currentRoute == "settings") Color.White else Color.White.copy(alpha = 0.6f)
-                )
-            },
-            label = { Text("Preferences") },
-            alwaysShowLabel = true,
-            colors = NavigationBarItemDefaults.colors(
-                indicatorColor = Color.Transparent,
-                selectedIconColor = Color.White,
-                unselectedIconColor = Color.White.copy(alpha = 0.6f),
-                selectedTextColor = Color.White,
-                unselectedTextColor = Color.White.copy(alpha = 0.6f)
+            NavigationBarItem(
+                selected = isSelected,
+                onClick = { navController.navigate(route) },
+                icon = {
+                    Icon(
+                        imageVector = if (isSelected) icons.first else icons.second,
+                        contentDescription = label,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                label = {
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                    )
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = Color(0xFF632F96),
+                    selectedIconColor = Color.White,
+                    unselectedIconColor = Color(0xFF8E8E93),
+                    selectedTextColor = Color.White,
+                    unselectedTextColor = Color(0xFF8E8E93)
+                ),
+                alwaysShowLabel = true
             )
-        )
+        }
     }
 }
