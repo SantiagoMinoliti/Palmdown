@@ -70,9 +70,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.work:work-runtime-ktx:2.8.1")
-
-
-
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))

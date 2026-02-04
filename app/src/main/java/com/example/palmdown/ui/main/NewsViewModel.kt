@@ -66,10 +66,6 @@ class NewsViewModel(
 
     fun getFilters(): NewsFilter = _filters.value
 
-    /* --------------------
-     *  LOADERS
-     * -------------------- */
-
     private suspend fun loadNews() {
         _isLoading.value = true
         _error.value = null
