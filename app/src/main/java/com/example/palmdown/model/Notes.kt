@@ -5,5 +5,7 @@ data class Notes (
     val id: String = "",
     val title: String = "",
     val content: String = "",
-    val date: Long = Date().time
+    val date: Long = Date().time,
+    val archived: Boolean = false,
+    val pinned: Boolean = false
 )
