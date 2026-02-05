@@ -6,6 +6,8 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,16 +31,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -51,6 +56,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
@@ -64,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -311,49 +319,44 @@ fun SettingsScreen(
                     ) {
                         Column(
                             modifier = Modifier
-                                .padding(top = 20.dp)
+                                .padding(top = 24.dp, bottom = 8.dp)
                                 .fillMaxWidth()
-                                .background(cardDark, RoundedCornerShape(6.dp))
-                                .padding(16.dp)
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Notifications per Day",
-                                    color = textPrimary,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
+                                    text = "Frequency",
+                                    color = textSecondary,
+                                    fontSize = 14.sp
                                 )
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    CircularIconButton(
-                                        icon = Icons.Default.Remove,
-                                        enabled = settings.notificationsPerDay > 1,
-                                        onClick = { viewModel.setNotificationsPerDay(settings.notificationsPerDay - 1) }
-                                    )
-
-                                    Text(
-                                        text = "${settings.notificationsPerDay}",
-                                        color = textPrimary,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.width(24.dp),
-                                        textAlign = TextAlign.Center
-                                    )
-
-                                    CircularIconButton(
-                                        icon = Icons.Default.Add,
-                                        enabled = settings.notificationsPerDay < 10,
-                                        onClick = { viewModel.setNotificationsPerDay(settings.notificationsPerDay + 1) }
-                                    )
-                                }
+                                Text(
+                                    text = "${settings.notificationsPerDay} / day",
+                                    color = accentPurple,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    fontFamily = FontFamily.Serif
+                                )
                             }
+
+                            Slider(
+                                value = settings.notificationsPerDay.toFloat(),
+                                onValueChange = { viewModel.setNotificationsPerDay(it.roundToInt()) },
+                                valueRange = 1f..10f,
+                                steps = 8,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = accentPurple,
+                                    inactiveTrackColor = Color(0xFF333333),
+                                    activeTickColor = Color.White.copy(alpha = 0.7f),
+                                    inactiveTickColor = Color(0xFF666666)
+                                )
+                            )
                         }
                     }
                 }
@@ -494,31 +497,5 @@ private fun EditorialChip(
                     .clickable { onRemove(label) }
             )
         }
-    }
-}
-
-@Composable
-private fun CircularIconButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val bgColor = if (enabled) Color(0xFF333333) else Color(0xFF222222)
-    val iconColor = if (enabled) Color.White else Color.Gray
-
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(bgColor)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = iconColor,
-            modifier = Modifier.size(18.dp)
-        )
     }
 }
