@@ -13,6 +13,7 @@ import com.example.palmdown.repository.NewsRepository
 import com.example.palmdown.worker.NewsBackgroundWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class NewsViewModel(
@@ -64,7 +65,33 @@ class NewsViewModel(
         }
     }
 
-    fun getFilters(): NewsFilter = _filters.value
+    fun toggleFavorite(newsId: String) {
+        viewModelScope.launch {
+            _news.update { currentList ->
+                currentList.map {
+                    if (it.id == newsId) it.copy(isFavorite = !it.isFavorite) else it
+                }
+            }
+        }
+    }
+
+    fun archiveNews(newsId: String) {
+        viewModelScope.launch {
+            _news.update { currentList ->
+                currentList.map {
+                    if (it.id == newsId) it.copy(isArchived = true) else it
+                }
+            }
+        }
+    }
+
+    fun deleteNews(newsId: String) {
+        viewModelScope.launch {
+            _news.update { currentList ->
+                currentList.filter { it.id != newsId }
+            }
+        }
+    }
 
     private suspend fun loadNews() {
         _isLoading.value = true

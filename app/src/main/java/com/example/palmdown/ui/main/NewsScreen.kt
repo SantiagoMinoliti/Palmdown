@@ -9,6 +9,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +42,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -70,9 +73,32 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
     val activeFilter by viewModel.filters.collectAsState()
 
     var searchExpanded by remember { mutableStateOf(false) }
+    var favoritesFirst by remember { mutableStateOf(false) }
     var focusedNewsId by remember { mutableStateOf<String?>(null) }
 
-    // Brand Palette Integration
+    val cyanAccent = Color(0xFF00E5FF)
+
+    val filteredNews by remember {
+        derivedStateOf {
+            val visible = newsList.filter { !it.isArchived }
+
+            val query = activeFilter.query
+            val filtered = if (query.isBlank()) visible else visible.filter {
+                it.title.contains(query, ignoreCase = true) ||
+                        (it.content?.contains(query, ignoreCase = true) == true)
+            }
+
+            if (favoritesFirst) {
+                filtered.sortedWith(
+                    compareByDescending<News> { it.isFavorite }
+                        .thenByDescending { it.date }
+                )
+            } else {
+                filtered
+            }
+        }
+    }
+
     val headerGradient = Brush.verticalGradient(
         colors = listOf(
             Color(0xFF121212),
@@ -115,6 +141,14 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                             letterSpacing = (-0.5).sp
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { favoritesFirst = !favoritesFirst }) {
+                                Icon(
+                                    imageVector = if (favoritesFirst) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                                    contentDescription = "Toggle Favorites",
+                                    tint = if (favoritesFirst) cyanAccent else Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
                             IconButton(onClick = { searchExpanded = !searchExpanded }) {
                                 Icon(
                                     Icons.Default.Search,
@@ -180,13 +214,13 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                         color = MaterialTheme.colorScheme.error
                     )
                 }
-                newsList.isEmpty() -> EmptyNewsTutorial()
+                filteredNews.isEmpty() -> EmptyNewsTutorial()
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp, start = 16.dp, end = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    items(newsList) { news ->
+                    items(filteredNews) { news ->
                         NewsListItem(
                             news = news.copy(
                                 title = news.title?.let { if (it.length > 128) it.take(128) + "…" else it } ?: "",
@@ -195,7 +229,10 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                             isFocused = focusedNewsId == news.id,
                             dimmed = focusedNewsId != null && focusedNewsId != news.id,
                             onLongPressActivated = { focusedNewsId = news.id },
-                            onMenuDismiss = { focusedNewsId = null }
+                            onMenuDismiss = { focusedNewsId = null },
+                            onToggleFavorite = { viewModel.toggleFavorite(news.id) },
+                            onArchive = { viewModel.archiveNews(news.id) },
+                            onDelete = { viewModel.deleteNews(news.id) }
                         )
                         Divider(
                             color = Color(0xFFE0E0E0),
@@ -248,7 +285,7 @@ private fun PremiumSearchBar(value: String, onValueChange: (String) -> Unit) {
                         fontFamily = FontFamily.SansSerif
                     ),
                     modifier = Modifier.fillMaxWidth(),
-                    cursorBrush = SolidColor(Color(0xFF632F96)) // Brand color cursor
+                    cursorBrush = SolidColor(Color(0xFF632F96))
                 )
             }
 
@@ -336,8 +373,18 @@ private fun EmptyNewsTutorial() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NewsListItem(news: News, isFocused: Boolean, dimmed: Boolean, onLongPressActivated: () -> Unit, onMenuDismiss: () -> Unit) {
+private fun NewsListItem(
+    news: News,
+    isFocused: Boolean,
+    dimmed: Boolean,
+    onLongPressActivated: () -> Unit,
+    onMenuDismiss: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onArchive: () -> Unit,
+    onDelete: () -> Unit
+) {
     val context = LocalContext.current
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
@@ -353,6 +400,7 @@ private fun NewsListItem(news: News, isFocused: Boolean, dimmed: Boolean, onLong
     val scale by animateFloatAsState(targetValue = if (isFocused) 1.02f else 1f, animationSpec = spring(dampingRatio = 0.45f, stiffness = 300f), label = "pop")
 
     val safeContent = news.content.takeUnless { it.isBlank() || it.equals("null", true) } ?: ""
+    val cyanAccent = Color(0xFF00E5FF)
 
     Box(
         modifier = Modifier
@@ -376,19 +424,40 @@ private fun NewsListItem(news: News, isFocused: Boolean, dimmed: Boolean, onLong
             )
     ) {
         Column {
-            if (news.imageUrl.isNotBlank()) {
-                Image(
-                    painter = rememberAsyncImagePainter(news.imageUrl),
-                    contentDescription = null,
+            Box(modifier = Modifier.fillMaxWidth()) {
+                if (news.imageUrl.isNotBlank()) {
+                    Image(
+                        painter = rememberAsyncImagePainter(news.imageUrl),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.LightGray),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
+                // Favorite Star
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.LightGray),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(Modifier.height(12.dp))
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable { onToggleFavorite() }
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (news.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                        contentDescription = "Favorite",
+                        tint = if (news.isFavorite) cyanAccent else Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
+
+            Spacer(Modifier.height(12.dp))
 
             Text(
                 text = news.title,
@@ -447,14 +516,33 @@ private fun NewsListItem(news: News, isFocused: Boolean, dimmed: Boolean, onLong
                 modifier = Modifier.background(Color.White)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Create note", fontSize = 14.sp) },
-                    onClick = { menuExpanded = false; fixedMenuOffset = null; onMenuDismiss() },
-                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    text = { Text("Share", fontSize = 14.sp) },
+                    onClick = {
+                        menuExpanded = false; fixedMenuOffset = null; onMenuDismiss()
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, "${news.title}\n\n${news.url}")
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share News"))
+                    },
+                    leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp)) }
                 )
                 DropdownMenuItem(
                     text = { Text("Archive", fontSize = 14.sp) },
-                    onClick = { menuExpanded = false; fixedMenuOffset = null; onMenuDismiss() },
+                    onClick = {
+                        menuExpanded = false; fixedMenuOffset = null; onMenuDismiss()
+                        onArchive()
+                    },
                     leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete", fontSize = 14.sp, color = Color(0xFFFF453A)) },
+                    onClick = {
+                        menuExpanded = false; fixedMenuOffset = null; onMenuDismiss()
+                        onDelete()
+                    },
+                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF453A), modifier = Modifier.size(18.dp)) }
                 )
             }
         }

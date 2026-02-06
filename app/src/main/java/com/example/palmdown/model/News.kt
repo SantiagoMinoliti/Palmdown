@@ -21,5 +21,8 @@ data class News(
 
     val sourceId: String = "",
     val sourceName: String = "",
-    val sourceIcon: String = ""
+    val sourceIcon: String = "",
+
+    val isArchived: Boolean = false,
+    val isFavorite: Boolean = false
 )
