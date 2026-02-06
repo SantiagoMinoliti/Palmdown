@@ -216,6 +216,7 @@ fun NotesScreen() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
@@ -606,39 +607,6 @@ fun NotesScreen() {
 }
 
 @Composable
-fun MenuOptionItem(
-    text: String,
-    icon: ImageVector,
-    textColor: Color,
-    iconColor: Color,
-    shape: Shape,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = text,
-            color = textColor,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
-        )
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = iconColor,
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-@Composable
 fun FooterActionButton(
     text: String,
     color: Color,
@@ -680,6 +648,39 @@ fun FooterActionButton(
     }
 }
 
+@Composable
+fun MenuOptionItem(
+    text: String,
+    icon: ImageVector,
+    textColor: Color,
+    iconColor: Color,
+    shape: Shape,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconColor,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppleStyleNoteCard(
@@ -705,7 +706,7 @@ fun AppleStyleNoteCard(
 
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
+        targetValue = if (isPressed) 1.02f else 1f,
         animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f),
         label = "scale"
     )
