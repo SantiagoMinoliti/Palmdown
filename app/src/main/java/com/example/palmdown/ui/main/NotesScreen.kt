@@ -1,6 +1,7 @@
 package com.example.palmdown.ui.notes
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -11,13 +12,17 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,10 +32,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.PushPin
@@ -40,10 +48,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -58,15 +69,20 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.example.palmdown.model.Notes
 import com.example.palmdown.repository.NotesRepository
+import com.example.palmdown.ui.archive.NotesArchiveActivity
 import com.example.palmdown.ui.editor.EditorActivity
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -90,6 +106,10 @@ fun NotesScreen() {
     var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
     var searchExpanded by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedNotes by remember { mutableStateOf(setOf<String>()) }
 
     var previewState by remember { mutableStateOf<NotePreviewState?>(null) }
 
@@ -118,6 +138,13 @@ fun NotesScreen() {
         }
     }
 
+    val allSelectedArePinned by remember {
+        derivedStateOf {
+            val selectedObjects = allNotes.filter { it.id in selectedNotes }
+            selectedObjects.isNotEmpty() && selectedObjects.all { it.pinned }
+        }
+    }
+
     fun refreshNotes() {
         isLoading = true
         scope.launch {
@@ -131,6 +158,23 @@ fun NotesScreen() {
         }
     }
 
+    fun toggleSelection(noteId: String) {
+        selectedNotes = if (selectedNotes.contains(noteId)) {
+            selectedNotes - noteId
+        } else {
+            selectedNotes + noteId
+        }
+    }
+
+    fun clearSelection() {
+        isSelectionMode = false
+        selectedNotes = emptySet()
+    }
+
+    BackHandler(enabled = isSelectionMode) {
+        clearSelection()
+    }
+
     LifecycleResumeEffect(Unit) {
         refreshNotes()
         onPauseOrDispose { }
@@ -140,7 +184,7 @@ fun NotesScreen() {
         Scaffold(
             containerColor = bgDark,
             floatingActionButton = {
-                if (previewState == null) {
+                if (previewState == null && !isSelectionMode) {
                     FloatingActionButton(
                         onClick = {
                             val intent = Intent(context, EditorActivity::class.java)
@@ -152,6 +196,87 @@ fun NotesScreen() {
                         shape = CircleShape
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(28.dp))
+                    }
+                }
+            },
+            bottomBar = {
+                AnimatedVisibility(
+                    visible = isSelectionMode && selectedNotes.isNotEmpty(),
+                    enter = slideInVertically { it },
+                    exit = slideOutVertically { it }
+                ) {
+                    Surface(
+                        color = bgDark,
+                        contentColor = textPrimary,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            Divider(color = Color(0xFF333333), thickness = 0.5.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    FooterActionButton(
+                                        text = if (allSelectedArePinned) "Unpin" else "Pin",
+                                        color = accentPurple,
+                                        onClick = {
+                                            scope.launch {
+                                                val targetState = !allSelectedArePinned
+                                                allNotes.filter { it.id in selectedNotes }.forEach { note ->
+                                                    repository.saveNote(note.copy(pinned = targetState))
+                                                }
+                                                refreshNotes()
+                                                clearSelection()
+                                            }
+                                        }
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    FooterActionButton(
+                                        text = "Archive",
+                                        color = accentPurple,
+                                        onClick = {
+                                            scope.launch {
+                                                allNotes.filter { it.id in selectedNotes }.forEach { note ->
+                                                    repository.saveNote(note.copy(archived = true))
+                                                }
+                                                refreshNotes()
+                                                clearSelection()
+                                            }
+                                        }
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    FooterActionButton(
+                                        text = "Delete",
+                                        color = destructiveRed,
+                                        onClick = {
+                                            scope.launch {
+                                                selectedNotes.forEach { id ->
+                                                    repository.deleteNote(id)
+                                                }
+                                                refreshNotes()
+                                                clearSelection()
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -172,32 +297,110 @@ fun NotesScreen() {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val hasSelection = isSelectionMode && selectedNotes.isNotEmpty()
+
                         Text(
-                            text = "Your Space",
+                            text = if (hasSelection) "${selectedNotes.size} Selected" else "Your Space",
                             style = MaterialTheme.typography.displaySmall,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
+                            fontFamily = if (hasSelection) FontFamily.SansSerif else FontFamily.Serif,
                             fontSize = 34.sp,
                             color = textPrimary,
                             letterSpacing = (-0.5).sp
                         )
-                        IconButton(
-                            onClick = {
-                                searchExpanded = !searchExpanded
-                                if (!searchExpanded) searchQuery = ""
+                        Row {
+                            if (!isSelectionMode) {
+                                IconButton(
+                                    onClick = {
+                                        searchExpanded = !searchExpanded
+                                        if (!searchExpanded) searchQuery = ""
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = if (searchExpanded) Icons.Default.Close else Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = accentPurple,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                                Box {
+                                    IconButton(onClick = { menuExpanded = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.MoreVert,
+                                            contentDescription = "Menu",
+                                            tint = accentPurple,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = menuExpanded,
+                                        onDismissRequest = { menuExpanded = false },
+                                        offset = DpOffset(x = 12.dp, y = 0.dp),
+                                        containerColor = Color.Transparent,
+                                        tonalElevation = 0.dp,
+                                        shadowElevation = 0.dp,
+                                        border = null
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(16.dp),
+                                            color = cardDark,
+                                            shadowElevation = 8.dp,
+                                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF333333)),
+                                            modifier = Modifier.widthIn(min = 220.dp)
+                                        ) {
+                                            Column {
+                                                MenuOptionItem(
+                                                    text = "Select Notes",
+                                                    icon = Icons.Default.CheckCircle,
+                                                    textColor = textPrimary,
+                                                    iconColor = accentPurple,
+                                                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                                                    onClick = {
+                                                        scope.launch {
+                                                            delay(150)
+                                                            isSelectionMode = true
+                                                            menuExpanded = false
+                                                        }
+                                                    }
+                                                )
+
+                                                Divider(color = Color(0xFF444444), thickness = 0.5.dp)
+
+                                                MenuOptionItem(
+                                                    text = "View Archive",
+                                                    icon = Icons.Default.Archive,
+                                                    textColor = textPrimary,
+                                                    iconColor = accentPurple,
+                                                    shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+                                                    onClick = {
+                                                        scope.launch {
+                                                            delay(150)
+                                                            menuExpanded = false
+                                                            val intent = Intent(context, NotesArchiveActivity::class.java)
+                                                            context.startActivity(intent)
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                IconButton(onClick = { clearSelection() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close Selection",
+                                        tint = accentPurple,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
                             }
-                        ) {
-                            Icon(
-                                imageVector = if (searchExpanded) Icons.Default.Close else Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = accentPurple,
-                                modifier = Modifier.size(26.dp)
-                            )
                         }
                     }
 
                     AnimatedVisibility(
-                        visible = searchExpanded,
+                        visible = searchExpanded && !isSelectionMode,
                         enter = fadeIn() + expandVertically(),
                         exit = fadeOut() + shrinkVertically()
                     ) {
@@ -264,7 +467,7 @@ fun NotesScreen() {
                         items(items = filteredNotes, key = { it.id }) { note ->
                             val dismissState = rememberSwipeToDismissBoxState(
                                 confirmValueChange = { value ->
-                                    if (value == SwipeToDismissBoxValue.EndToStart) {
+                                    if (value == SwipeToDismissBoxValue.EndToStart && !isSelectionMode) {
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                         scope.launch {
                                             val updatedNote = note.copy(archived = true)
@@ -281,6 +484,7 @@ fun NotesScreen() {
                             SwipeToDismissBox(
                                 state = dismissState,
                                 enableDismissFromStartToEnd = false,
+                                gesturesEnabled = !isSelectionMode,
                                 backgroundContent = {
                                     val density = LocalDensity.current
                                     val offset = try { dismissState.requireOffset() } catch (e: Exception) { 0f }
@@ -314,17 +518,27 @@ fun NotesScreen() {
                                         textColor = textPrimary,
                                         dateColor = textSecondary,
                                         accentColor = accentPurple,
+                                        isSelectionMode = isSelectionMode,
+                                        isSelected = selectedNotes.contains(note.id),
                                         onClick = {
-                                            val intent = Intent(context, EditorActivity::class.java).apply {
-                                                putExtra("NOTE_ID", note.id)
-                                                putExtra("NOTE_TITLE", note.title)
-                                                putExtra("NOTE_CONTENT", note.content)
+                                            if (isSelectionMode) {
+                                                toggleSelection(note.id)
+                                            } else {
+                                                val intent = Intent(context, EditorActivity::class.java).apply {
+                                                    putExtra("NOTE_ID", note.id)
+                                                    putExtra("NOTE_TITLE", note.title)
+                                                    putExtra("NOTE_CONTENT", note.content)
+                                                }
+                                                context.startActivity(intent)
                                             }
-                                            context.startActivity(intent)
                                         },
                                         onLongClick = { bounds ->
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            previewState = NotePreviewState(note, bounds)
+                                            if (!isSelectionMode) {
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                previewState = NotePreviewState(note, bounds)
+                                            } else {
+                                                toggleSelection(note.id)
+                                            }
                                         }
                                     )
                                 }
@@ -391,6 +605,81 @@ fun NotesScreen() {
     }
 }
 
+@Composable
+fun MenuOptionItem(
+    text: String,
+    icon: ImageVector,
+    textColor: Color,
+    iconColor: Color,
+    shape: Shape,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconColor,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+@Composable
+fun FooterActionButton(
+    text: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val glowAlpha by animateFloatAsState(targetValue = if (isPressed) 0.3f else 0f, label = "glow")
+
+    Box(
+        modifier = Modifier
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .drawBehind {
+                if (glowAlpha > 0f) {
+                    drawOval(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                color.copy(alpha = glowAlpha),
+                                color.copy(alpha = 0f)
+                            ),
+                            center = center,
+                            radius = size.width / 1.4f
+                        )
+                    )
+                }
+            }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 16.sp
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppleStyleNoteCard(
@@ -399,6 +688,8 @@ fun AppleStyleNoteCard(
     textColor: Color,
     dateColor: Color,
     accentColor: Color,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: (Rect) -> Unit
 ) {
@@ -419,6 +710,8 @@ fun AppleStyleNoteCard(
         label = "scale"
     )
 
+    val finalCardColor = if (isSelected) Color(0xFF38383A) else cardColor
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -427,7 +720,12 @@ fun AppleStyleNoteCard(
                 itemBounds = coordinates.boundsInRoot()
             }
             .clip(RoundedCornerShape(12.dp))
-            .background(cardColor)
+            .background(finalCardColor)
+            .border(
+                width = if (isSelected) 1.dp else 0.dp,
+                color = if (isSelected) accentColor else Color.Transparent,
+                shape = RoundedCornerShape(12.dp)
+            )
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
@@ -451,56 +749,70 @@ fun AppleStyleNoteCard(
                 }
             }
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .padding(18.dp)
                 .fillMaxWidth()
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Text(
-                    text = if (note.title.isBlank()) "New Entry" else note.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = textColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+            if (isSelectionMode) {
+                Icon(
+                    imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                    contentDescription = null,
+                    tint = if (isSelected) accentColor else Color.Gray,
+                    modifier = Modifier
+                        .padding(end = 16.dp)
+                        .size(24.dp)
                 )
-
-                if (note.pinned) {
-                    Icon(
-                        imageVector = Icons.Default.PushPin,
-                        contentDescription = "Pinned",
-                        tint = accentColor,
-                        modifier = Modifier.size(16.dp).padding(start = 4.dp)
-                    )
-                }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = if (note.title.isBlank()) "New Entry" else note.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = textColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = dateTimeStr,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = dateColor.copy(alpha = 0.8f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(end = 10.dp)
-                )
-                Text(
-                    text = if (note.content.isBlank()) "No additional text" else note.content.replace("\n", " "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = dateColor.copy(alpha = 0.6f),
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                    if (note.pinned) {
+                        Icon(
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = "Pinned",
+                            tint = accentColor,
+                            modifier = Modifier.size(16.dp).padding(start = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = dateTimeStr,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = dateColor.copy(alpha = 0.8f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(end = 10.dp)
+                    )
+                    Text(
+                        text = if (note.content.isBlank()) "No additional text" else note.content.replace("\n", " "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = dateColor.copy(alpha = 0.6f),
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -551,21 +863,27 @@ fun PreviewOverlay(
     }
 
     val configuration = LocalConfiguration.current
-    val screenHeight = configuration.screenHeightDp.dp
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
 
-    val initialTop = with(density) { state.initialBounds.top.toDp() }
-    val targetTop = 48.dp
-    val currentTop = androidx.compose.ui.unit.lerp(initialTop, targetTop, animProgress.value)
+    val initialTopPx = state.initialBounds.top
+    val targetTopPx = with(density) { 48.dp.toPx() }
+    val currentTopPx = lerp(initialTopPx, targetTopPx, animProgress.value)
+
+    val initialLeftPx = state.initialBounds.left
+    val initialWidthPx = state.initialBounds.width
+    val targetLeftPx = (screenWidthPx - initialWidthPx) / 2f
+    val currentLeftPx = lerp(initialLeftPx, targetLeftPx, animProgress.value)
 
     val menuHeight = 300.dp
     val spacerHeight = 16.dp
     val bottomMargin = 32.dp
 
-    val maxCardHeight = screenHeight - targetTop - menuHeight - spacerHeight - bottomMargin
+    val maxCardHeightPx = screenHeightPx - targetTopPx - with(density) { (menuHeight + spacerHeight + bottomMargin).toPx() }
 
-    val initialHeight = with(density) { state.initialBounds.height.toDp() }
-    val targetHeight = maxCardHeight.coerceAtLeast(initialHeight)
-    val currentHeight = androidx.compose.ui.unit.lerp(initialHeight, targetHeight, animProgress.value)
+    val initialHeightPx = state.initialBounds.height
+    val targetHeightPx = maxCardHeightPx.coerceAtLeast(initialHeightPx)
+    val currentHeightPx = lerp(initialHeightPx, targetHeightPx, animProgress.value)
 
     Box(
         modifier = Modifier
@@ -577,14 +895,14 @@ fun PreviewOverlay(
     ) {
         Column(
             modifier = Modifier
-                .width(with(density) { state.initialBounds.width.toDp() })
-                .align(Alignment.TopCenter)
-                .offset(y = currentTop)
+                .width(with(density) { initialWidthPx.toDp() })
+                .align(Alignment.TopStart)
+                .offset { IntOffset(currentLeftPx.roundToInt(), currentTopPx.roundToInt()) }
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(currentHeight)
+                    .height(with(density) { currentHeightPx.toDp() })
                     .clip(RoundedCornerShape(14.dp))
                     .background(cardColor)
                     .clickable { startDismiss { onEdit() } }

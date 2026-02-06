@@ -27,6 +27,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Palmdown">
         <activity
+            android:name=".ui.archive.NotesArchiveActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.archive.NewsArchiveActivity"
             android:exported="false" />
         <activity
