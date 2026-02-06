@@ -2,7 +2,6 @@ package com.example.palmdown.ui.main
 
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -14,7 +13,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -35,16 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -52,17 +47,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.palmdown.model.News
-import com.example.palmdown.ui.archive.NotesArchiveActivity
 import com.example.palmdown.utils.DateUtils
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -166,60 +157,16 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
-                            // Main page menu (3 dots)
-                            var pageMenuExpanded by remember { mutableStateOf(false) }
-                            Box {
-                                IconButton(onClick = { pageMenuExpanded = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.MoreVert,
-                                        contentDescription = "Menu",
-                                        tint = Color.White.copy(alpha = 0.9f),
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = pageMenuExpanded,
-                                    onDismissRequest = { pageMenuExpanded = false },
-                                    offset = DpOffset(x = 0.dp, y = 8.dp),
-                                    containerColor = Color.Transparent,
-                                    tonalElevation = 0.dp,
-                                    shadowElevation = 0.dp
-                                ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(16.dp),
-                                        color = Color(0xFF1E1B2E),
-                                        shadowElevation = 8.dp,
-                                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF333333)),
-                                        modifier = Modifier.widthIn(min = 200.dp)
-                                    ) {
-                                        Column {
-                                            NewsMenuOptionItem(
-                                                text = "View Archive",
-                                                icon = Icons.Default.Archive,
-                                                textColor = Color.White,
-                                                iconColor = cyanAccent,
-                                                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                                                onClick = {
-                                                    pageMenuExpanded = false
-                                                    val intent = Intent(context, NotesArchiveActivity::class.java)
-                                                    context.startActivity(intent)
-                                                }
-                                            )
-                                            Divider(color = Color(0xFF444444), thickness = 0.5.dp)
-                                            NewsMenuOptionItem(
-                                                text = "Refresh",
-                                                icon = Icons.Default.Refresh,
-                                                textColor = Color.White,
-                                                iconColor = cyanAccent,
-                                                shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-                                                onClick = {
-                                                    pageMenuExpanded = false
-                                                    viewModel.refresh(context, forceRefresh = true)
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
+                            IconButton(
+                                onClick = { viewModel.refresh(context, forceRefresh = true) },
+                                enabled = !isLoading
+                            ) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Refresh",
+                                    tint = Color.White.copy(alpha = 0.9f),
+                                    modifier = Modifier.size(26.dp)
+                                )
                             }
                         }
                     }
@@ -440,12 +387,12 @@ private fun NewsListItem(
 ) {
     val context = LocalContext.current
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-    val haptics = LocalHapticFeedback.current
-    val density = LocalDensity.current
 
     var menuExpanded by remember { mutableStateOf(false) }
-    var tapOffset by remember { mutableStateOf(Offset.Zero) }
+    var pressOffset by remember { mutableStateOf(Offset.Zero) }
+    var fixedMenuOffset by remember { mutableStateOf<Offset?>(null) }
 
+    val density = LocalDensity.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -460,22 +407,21 @@ private fun NewsListItem(
             .fillMaxWidth()
             .alpha(alpha)
             .scale(scale)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onLongPress = { offset ->
-                        tapOffset = offset
-                        menuExpanded = true
-                        onLongPressActivated()
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    },
-                    onTap = {
-                        if (news.url.isNotBlank()) {
-                            val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
-                        }
-                    }
-                )
-            }
+            .onGloballyPositioned { coords -> if (fixedMenuOffset == null) pressOffset = coords.localToWindow(Offset.Zero) }
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {
+                    if (news.url.isBlank()) return@combinedClickable
+                    val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
+                },
+                onLongClick = {
+                    onLongPressActivated()
+                    fixedMenuOffset = pressOffset
+                    menuExpanded = true
+                }
+            )
     ) {
         Column {
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -497,6 +443,8 @@ private fun NewsListItem(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f))
                         .clickable { onToggleFavorite() }
                         .padding(8.dp)
                 ) {
@@ -504,9 +452,7 @@ private fun NewsListItem(
                         imageVector = if (news.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
                         contentDescription = "Favorite",
                         tint = if (news.isFavorite) cyanAccent else Color.White,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .shadow(2.dp, CircleShape)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -558,103 +504,48 @@ private fun NewsListItem(
             }
         }
 
-        // Popup Menu under the finger
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = {
-                menuExpanded = false
-                onMenuDismiss()
-            },
-            offset = DpOffset(
-                x = with(density) { tapOffset.x.toDp() },
-                y = with(density) { tapOffset.y.toDp() }
-            ),
-            containerColor = Color.Transparent,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
-            modifier = Modifier.widthIn(min = 200.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                shadowElevation = 12.dp,
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFFEEEEEE))
+        fixedMenuOffset?.let { offset ->
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = {
+                    menuExpanded = false
+                    fixedMenuOffset = null
+                    onMenuDismiss()
+                },
+                offset = DpOffset(x = with(density) { offset.x.toDp() }, y = with(density) { offset.y.toDp() }),
+                modifier = Modifier.background(Color.White)
             ) {
-                Column {
-                    NewsMenuOptionItem(
-                        text = "Share",
-                        icon = Icons.Default.Share,
-                        textColor = Color.Black,
-                        iconColor = Color.Black,
-                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                        onClick = {
-                            menuExpanded = false
-                            onMenuDismiss()
-                            onShare()
+                DropdownMenuItem(
+                    text = { Text("Share", fontSize = 14.sp) },
+                    onClick = {
+                        menuExpanded = false; fixedMenuOffset = null; onMenuDismiss()
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, "${news.title}\n\n${news.url}")
+                            type = "text/plain"
                         }
-                    )
-                    Divider(color = Color(0xFFEEEEEE), thickness = 0.5.dp)
-                    NewsMenuOptionItem(
-                        text = "Archive",
-                        icon = Icons.Default.Archive,
-                        textColor = Color.Black,
-                        iconColor = Color.Black,
-                        shape = androidx.compose.ui.graphics.RectangleShape,
-                        onClick = {
-                            menuExpanded = false
-                            onMenuDismiss()
-                            onArchive()
-                        }
-                    )
-                    Divider(color = Color(0xFFEEEEEE), thickness = 0.5.dp)
-                    NewsMenuOptionItem(
-                        text = "Delete",
-                        icon = Icons.Default.Delete,
-                        textColor = Color(0xFFFF453A),
-                        iconColor = Color(0xFFFF453A),
-                        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-                        onClick = {
-                            menuExpanded = false
-                            onMenuDismiss()
-                            onDelete()
-                        }
-                    )
-                }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share News"))
+                    },
+                    leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Archive", fontSize = 14.sp) },
+                    onClick = {
+                        menuExpanded = false; fixedMenuOffset = null; onMenuDismiss()
+                        onArchive()
+                    },
+                    leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete", fontSize = 14.sp, color = Color(0xFFFF453A)) },
+                    onClick = {
+                        menuExpanded = false; fixedMenuOffset = null; onMenuDismiss()
+                        onDelete()
+                    },
+                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF453A), modifier = Modifier.size(18.dp)) }
+                )
             }
         }
-    }
-}
-
-@Composable
-fun NewsMenuOptionItem(
-    text: String,
-    icon: ImageVector,
-    textColor: Color,
-    iconColor: Color,
-    shape: Shape,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = text,
-            color = textColor,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
-        )
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = iconColor,
-            modifier = Modifier.size(18.dp)
-        )
     }
 }
 
@@ -666,5 +557,3 @@ private fun formatCountrySingle(raw: String): String {
     val lowercaseWords = setOf("of", "and", "the")
     return lower.split(" ").joinToString(" ") { word -> if (word in lowercaseWords) word else word.replaceFirstChar { it.uppercase() } }
 }
-
-private fun onShare() {}
