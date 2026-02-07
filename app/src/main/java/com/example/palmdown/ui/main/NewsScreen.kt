@@ -9,6 +9,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,6 +29,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,12 +41,13 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -54,12 +59,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.palmdown.model.News
 import com.example.palmdown.utils.DateUtils
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
         NewsScreenTracker.isNewsScreenVisible = true
@@ -75,8 +84,13 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
     var searchExpanded by remember { mutableStateOf(false) }
     var favoritesFirst by remember { mutableStateOf(false) }
     var focusedNewsId by remember { mutableStateOf<String?>(null) }
+    var showTopMenu by remember { mutableStateOf(false) }
+    var isSelectionMode by remember { mutableStateOf(false) }
 
     val cyanAccent = Color(0xFF00E5FF)
+    val cardDark = Color(0xFF1E1E1E)
+    val textPrimary = Color.White
+    val accentPurple = Color(0xFF632F96)
 
     val filteredNews by remember {
         derivedStateOf {
@@ -144,7 +158,7 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                             IconButton(onClick = { favoritesFirst = !favoritesFirst }) {
                                 Icon(
                                     imageVector = if (favoritesFirst) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                                    contentDescription = "Toggle Favorites",
+                                    contentDescription = null,
                                     tint = if (favoritesFirst) cyanAccent else Color.White.copy(alpha = 0.7f),
                                     modifier = Modifier.size(26.dp)
                                 )
@@ -152,21 +166,92 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                             IconButton(onClick = { searchExpanded = !searchExpanded }) {
                                 Icon(
                                     Icons.Default.Search,
-                                    contentDescription = "Search",
+                                    contentDescription = null,
                                     tint = Color.White.copy(alpha = 0.9f),
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
-                            IconButton(
-                                onClick = { viewModel.refresh(context, forceRefresh = true) },
-                                enabled = !isLoading
-                            ) {
-                                Icon(
-                                    Icons.Default.Refresh,
-                                    contentDescription = "Refresh",
-                                    tint = Color.White.copy(alpha = 0.9f),
-                                    modifier = Modifier.size(26.dp)
-                                )
+                            Box {
+                                IconButton(onClick = { showTopMenu = true }) {
+                                    Icon(
+                                        Icons.Default.MoreVert,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.9f),
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showTopMenu,
+                                    onDismissRequest = { showTopMenu = false },
+                                    offset = DpOffset(x = 12.dp, y = 0.dp),
+                                    containerColor = Color.Transparent,
+                                    tonalElevation = 0.dp,
+                                    shadowElevation = 0.dp,
+                                    border = null
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = cardDark,
+                                        shadowElevation = 8.dp,
+                                        border = BorderStroke(0.5.dp, Color(0xFF333333)),
+                                        modifier = Modifier.widthIn(min = 220.dp)
+                                    ) {
+                                        Column {
+                                            MenuOptionItem(
+                                                text = "Refresh",
+                                                icon = Icons.Default.Refresh,
+                                                textColor = textPrimary,
+                                                iconColor = accentPurple,
+                                                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                                                onClick = {
+                                                    scope.launch {
+                                                        showTopMenu = false
+                                                        viewModel.refresh(context, forceRefresh = true)
+                                                    }
+                                                }
+                                            )
+
+                                            Divider(color = Color(0xFF444444), thickness = 0.5.dp)
+
+                                            MenuOptionItem(
+                                                text = "Select News",
+                                                icon = Icons.Default.CheckCircle,
+                                                textColor = textPrimary,
+                                                iconColor = accentPurple,
+                                                shape = RoundedCornerShape(0.dp),
+                                                onClick = {
+                                                    scope.launch {
+                                                        delay(150)
+                                                        isSelectionMode = true
+                                                        showTopMenu = false
+                                                    }
+                                                }
+                                            )
+
+                                            Divider(color = Color(0xFF444444), thickness = 0.5.dp)
+
+                                            MenuOptionItem(
+                                                text = "View Archive",
+                                                icon = Icons.Default.Archive,
+                                                textColor = textPrimary,
+                                                iconColor = accentPurple,
+                                                shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+                                                onClick = {
+                                                    scope.launch {
+                                                        delay(150)
+                                                        showTopMenu = false
+                                                        try {
+                                                            val intent = Intent(context, Class.forName("com.example.palmdown.ui.archive.NewsArchiveActivity"))
+                                                            context.startActivity(intent)
+                                                        } catch (e: Exception) {
+                                                            e.printStackTrace()
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -205,7 +290,7 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
             }
 
             when {
-                isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                isLoading && filteredNews.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                     CircularProgressIndicator(color = Color(0xFF632F96))
                 }
                 errorMessage != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
@@ -215,30 +300,49 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                     )
                 }
                 filteredNews.isEmpty() -> EmptyNewsTutorial()
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp, start = 16.dp, end = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    items(filteredNews) { news ->
-                        NewsListItem(
-                            news = news.copy(
-                                title = news.title?.let { if (it.length > 128) it.take(128) + "…" else it } ?: "",
-                                content = news.content?.let { if (it.length > 192) it.take(192) + "…" else it } ?: ""
-                            ),
-                            isFocused = focusedNewsId == news.id,
-                            dimmed = focusedNewsId != null && focusedNewsId != news.id,
-                            onLongPressActivated = { focusedNewsId = news.id },
-                            onMenuDismiss = { focusedNewsId = null },
-                            onToggleFavorite = { viewModel.toggleFavorite(news.id) },
-                            onArchive = { viewModel.archiveNews(news.id) },
-                            onDelete = { viewModel.deleteNews(news.id) }
-                        )
-                        Divider(
-                            color = Color(0xFFE0E0E0),
-                            thickness = 1.dp,
-                            modifier = Modifier.padding(top = 24.dp)
-                        )
+                else -> {
+                    val pullRefreshState = rememberPullToRefreshState()
+                    PullToRefreshBox(
+                        isRefreshing = isLoading,
+                        onRefresh = { viewModel.refresh(context, forceRefresh = true) },
+                        modifier = Modifier.fillMaxSize(),
+                        state = pullRefreshState,
+                        indicator = {
+                            PullToRefreshDefaults.Indicator(
+                                state = pullRefreshState,
+                                isRefreshing = isLoading,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                                containerColor = Color.White,
+                                color = accentPurple
+                            )
+                        }
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp, start = 16.dp, end = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(24.dp)
+                        ) {
+                            items(filteredNews) { news ->
+                                NewsListItem(
+                                    news = news.copy(
+                                        title = news.title?.let { if (it.length > 128) it.take(128) + "…" else it } ?: "",
+                                        content = news.content?.let { if (it.length > 192) it.take(192) + "…" else it } ?: ""
+                                    ),
+                                    isFocused = focusedNewsId == news.id,
+                                    dimmed = focusedNewsId != null && focusedNewsId != news.id,
+                                    onLongPressActivated = { focusedNewsId = news.id },
+                                    onMenuDismiss = { focusedNewsId = null },
+                                    onToggleFavorite = { viewModel.toggleFavorite(news.id) },
+                                    onArchive = { viewModel.archiveNews(news.id) },
+                                    onDelete = { viewModel.deleteNews(news.id) }
+                                )
+                                Divider(
+                                    color = Color(0xFFE0E0E0),
+                                    thickness = 1.dp,
+                                    modifier = Modifier.padding(top = 24.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -438,7 +542,6 @@ private fun NewsListItem(
                     )
                 }
 
-                // Favorite Star
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -555,4 +658,39 @@ private fun formatCountrySingle(raw: String): String {
     val lower = first.lowercase(Locale.getDefault())
     val lowercaseWords = setOf("of", "and", "the")
     return lower.split(" ").joinToString(" ") { word -> if (word in lowercaseWords) word else word.replaceFirstChar { it.uppercase() } }
+}
+
+@Composable
+fun MenuOptionItem(
+    text: String,
+    icon: ImageVector,
+    textColor: Color,
+    iconColor: Color,
+    shape: Shape,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            style = TextStyle(
+                color = textColor,
+                fontSize = 16.sp,
+                fontFamily = FontFamily.SansSerif
+            )
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconColor,
+            modifier = Modifier.size(20.dp)
+        )
+    }
 }
