@@ -81,6 +81,14 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
     val categories by viewModel.categories.collectAsState()
     val activeFilter by viewModel.filters.collectAsState()
 
+    LaunchedEffect(categories, activeFilter.category) {
+        if (activeFilter.category != "all" && activeFilter.category.isNotBlank()) {
+            if (categories.none { it.equals(activeFilter.category, ignoreCase = true) }) {
+                viewModel.updateCategory("all")
+            }
+        }
+    }
+
     var searchExpanded by remember { mutableStateOf(false) }
     var favoritesFirst by remember { mutableStateOf(false) }
     var focusedNewsId by remember { mutableStateOf<String?>(null) }
@@ -91,6 +99,18 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
     val cardDark = Color(0xFF1E1E1E)
     val textPrimary = Color.White
     val accentPurple = Color(0xFF632F96)
+
+    val sortedCategories = remember(categories) {
+        val list = mutableListOf<String>()
+        list.add("all")
+        if (categories.any { it.equals("top", true) }) list.add("top")
+        categories.filter { !it.equals("top", true) }
+            .map { it.lowercase(Locale.getDefault()) }
+            .distinct()
+            .sorted()
+            .forEach { list.add(it) }
+        list
+    }
 
     val filteredNews by remember {
         derivedStateOf {
@@ -267,25 +287,15 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                         )
                     }
 
-                    val sortedCategories = remember(categories) {
-                        val list = mutableListOf<String>()
-                        list.add("all")
-                        if (categories.any { it.equals("top", true) }) list.add("top")
-                        categories.filter { !it.equals("top", true) }
-                            .map { it.lowercase(Locale.getDefault()) }
-                            .distinct()
-                            .sorted()
-                            .forEach { list.add(it) }
-                        list
+                    if (sortedCategories.size > 1) {
+                        Spacer(Modifier.height(16.dp))
+
+                        CategoryRowDark(
+                            categories = sortedCategories,
+                            selected = activeFilter.category.ifBlank { "all" },
+                            onSelected = viewModel::updateCategory
+                        )
                     }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    CategoryRowDark(
-                        categories = sortedCategories,
-                        selected = activeFilter.category.ifBlank { "all" },
-                        onSelected = viewModel::updateCategory
-                    )
                 }
             }
 
