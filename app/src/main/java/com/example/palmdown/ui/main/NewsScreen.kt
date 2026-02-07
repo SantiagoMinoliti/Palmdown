@@ -444,7 +444,6 @@ private fun NewsListItem(
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.4f))
                         .clickable { onToggleFavorite() }
                         .padding(8.dp)
                 ) {
