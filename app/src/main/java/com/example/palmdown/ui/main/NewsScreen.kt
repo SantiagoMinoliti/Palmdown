@@ -103,7 +103,6 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
     var favoritesFirst by remember { mutableStateOf(false) }
     var showTopMenu by remember { mutableStateOf(false) }
 
-    // Selection Mode States
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedNewsIds by remember { mutableStateOf(setOf<String>()) }
 
@@ -113,7 +112,6 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
     val accentPurple = Color(0xFF632F96)
     val destructiveRed = Color(0xFFFF453A)
 
-    // Handle Back Press to exit selection mode
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
         selectedNewsIds = emptySet()
@@ -131,7 +129,6 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
         list
     }
 
-    // Filter logic: Exclude archived news, handle search query, handle sorting (favorites first)
     val filteredNews by remember {
         derivedStateOf {
             val visible = newsList.filter { !it.isArchived }
@@ -383,7 +380,6 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                                     isSelected = selectedNewsIds.contains(news.id),
                                     onLongPressActivated = {
                                         if (!isSelectionMode) {
-                                            // Handle context menu logic inside NewsListItem
                                         } else {
                                             isSelectionMode = true
                                             selectedNewsIds = selectedNewsIds + news.id
@@ -415,84 +411,84 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
             }
         }
 
-        // Bottom Action Bar for Selection Mode
         AnimatedVisibility(
             visible = isSelectionMode && selectedNewsIds.isNotEmpty(),
             enter = slideInVertically { it },
             exit = slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Surface(
-                color = Color(0xFF1E1E1E),
-                contentColor = Color.White,
-                shadowElevation = 16.dp,
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .height(48.dp)
             ) {
-                Column {
-                    Divider(color = Color(0xFF333333), thickness = 0.5.dp)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Favorite Action
-                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            FooterActionButton(
-                                text = if (allSelectedAreFavorites) "Unfavorite" else "Favorite",
-                                icon = if (allSelectedAreFavorites) Icons.Outlined.StarBorder else Icons.Filled.Star,
-                                color = cyanAccent,
-                                onClick = {
-                                    scope.launch {
-                                        val targetState = !allSelectedAreFavorites
-                                        // Update local list assumption or just trigger actions
-                                        val itemsToUpdate = newsList.filter { it.id in selectedNewsIds }
-                                        itemsToUpdate.forEach { news ->
-                                            if (news.isFavorite != targetState) {
-                                                viewModel.toggleFavorite(news.id)
-                                            }
-                                        }
-                                        isSelectionMode = false
-                                        selectedNewsIds = emptySet()
-                                    }
-                                }
-                            )
-                        }
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE0E0E0)).align(Alignment.TopCenter))
 
-                        // Archive Action
-                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            FooterActionButton(
-                                text = "Archive",
-                                icon = Icons.Default.Archive,
-                                color = accentPurple,
-                                onClick = {
-                                    scope.launch {
-                                        selectedNewsIds.forEach { id -> viewModel.archiveNews(id) }
-                                        isSelectionMode = false
-                                        selectedNewsIds = emptySet()
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .clickable {
+                            scope.launch {
+                                val targetState = !allSelectedAreFavorites
+                                val itemsToUpdate = newsList.filter { it.id in selectedNewsIds }
+                                itemsToUpdate.forEach { news ->
+                                    if (news.isFavorite != targetState) {
+                                        viewModel.toggleFavorite(news.id)
                                     }
                                 }
-                            )
+                                isSelectionMode = false
+                                selectedNewsIds = emptySet()
+                            }
                         }
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (allSelectedAreFavorites) "Unstar" else "Star",
+                        color = Color(0xFF0097A7),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp
+                    )
+                }
 
-                        // Delete Action
-                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            FooterActionButton(
-                                text = "Delete",
-                                icon = Icons.Default.Delete,
-                                color = destructiveRed,
-                                onClick = {
-                                    scope.launch {
-                                        selectedNewsIds.forEach { id -> viewModel.deleteNews(id) }
-                                        isSelectionMode = false
-                                        selectedNewsIds = emptySet()
-                                    }
-                                }
-                            )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clickable {
+                            scope.launch {
+                                selectedNewsIds.forEach { id -> viewModel.archiveNews(id) }
+                                isSelectionMode = false
+                                selectedNewsIds = emptySet()
+                            }
                         }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp)) // Safe area padding
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "Archive",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .clickable {
+                            scope.launch {
+                                selectedNewsIds.forEach { id -> viewModel.deleteNews(id) }
+                                isSelectionMode = false
+                                selectedNewsIds = emptySet()
+                            }
+                        }
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "Delete",
+                        color = destructiveRed,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp
+                    )
                 }
             }
         }
@@ -539,44 +535,6 @@ fun MenuOptionItem(
             contentDescription = null,
             tint = iconColor,
             modifier = Modifier.size(20.dp)
-        )
-    }
-}
-
-@Composable
-fun FooterActionButton(
-    text: String,
-    icon: ImageVector,
-    color: Color,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val glowAlpha by animateFloatAsState(targetValue = if (isPressed) 0.15f else 0f, label = "glow")
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .background(color.copy(alpha = glowAlpha))
-            .padding(8.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = text,
-            color = color,
-            fontSize = 12.sp
         )
     }
 }
