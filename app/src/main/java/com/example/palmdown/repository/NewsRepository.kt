@@ -8,6 +8,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
+import java.security.MessageDigest
 import java.util.Locale
 
 class NewsRepository {
@@ -30,22 +31,46 @@ class NewsRepository {
         ?.collection("filters")
         ?.document("filterset")
 
+    /**
+     * Genera un hash MD5 dall'URL per usarlo come ID del documento.
+     * Questo garantisce che lo stesso URL produca sempre lo stesso ID,
+     * prevenendo duplicati a livello strutturale.
+     */
+    private fun generateIdFromUrl(url: String): String {
+        return try {
+            val digest = MessageDigest.getInstance("MD5")
+            val hash = digest.digest(url.toByteArray(Charsets.UTF_8))
+            // Converte i byte in stringa esadecimale
+            hash.joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            // Fallback in caso remoto di errore MD5 (usiamo l'hashcode pulito)
+            url.hashCode().toString().replace("-", "")
+        }
+    }
+
     suspend fun saveNewsIfNotExists(news: News): Boolean {
         return try {
             val collection = getUserNewsCollection() ?: return false
 
-            val existing = collection
-                .whereEqualTo("url", news.url)
-                .limit(1)
-                .get()
-                .await()
+            if (news.url.isBlank()) return false
 
-            if (!existing.isEmpty) return false
+            // 1. Generiamo l'ID basato sull'URL
+            val deterministicId = generateIdFromUrl(news.url)
 
-            val docRef = collection.document()
+            // 2. Puntiamo direttamente al documento specifico
+            val docRef = collection.document(deterministicId)
 
+            // 3. Controlliamo se esiste ESATTAMENTE questo ID (più efficiente della query whereEqualTo)
+            val snapshot = docRef.get().await()
+
+            if (snapshot.exists()) {
+                Log.d("NewsRepo", "News già presente: ${news.title}")
+                return false
+            }
+
+            // 4. Salviamo usando l'ID deterministico
             val payload = hashMapOf(
-                "id" to docRef.id,
+                "id" to deterministicId, // L'ID nel documento corrisponde alla chiave
                 "title" to news.title,
                 "content" to news.content,
                 "url" to news.url,
@@ -67,6 +92,7 @@ class NewsRepository {
             docRef.set(payload).await()
             true
         } catch (e: Exception) {
+            Log.e("NewsRepo", "Error saving news", e)
             false
         }
     }
@@ -74,14 +100,17 @@ class NewsRepository {
     suspend fun updateNews(news: News) {
         try {
             val collection = getUserNewsCollection() ?: return
-            if (news.id.isBlank()) return
+
+            // Se l'oggetto News ha già un ID (perché letto dal DB), usiamo quello.
+            // Se è vuoto (caso raro in update), ricalcoliamo l'hash dall'URL per sicurezza.
+            val docId = if (news.id.isNotBlank()) news.id else generateIdFromUrl(news.url)
 
             val updates = mapOf(
                 "isArchived" to news.isArchived,
                 "isFavorite" to news.isFavorite
             )
 
-            collection.document(news.id).update(updates).await()
+            collection.document(docId).update(updates).await()
         } catch (e: Exception) {
             Log.e("NewsRepo", "Error updating news", e)
         }
@@ -106,20 +135,19 @@ class NewsRepository {
 
             val snapshot = query.get().await()
 
-            // Mappatura manuale per garantire la corretta lettura dei campi booleani isFavorite/isArchived
-            var news = snapshot.documents.map { doc ->
+            var newsList = snapshot.documents.map { doc ->
                 mapDocumentToNews(doc)
             }
 
             if (filter.query.isNotBlank()) {
                 val q = filter.query.lowercase(Locale.getDefault())
-                news = news.filter {
+                newsList = newsList.filter {
                     it.title.lowercase(Locale.getDefault()).contains(q) ||
                             it.content.lowercase(Locale.getDefault()).contains(q)
                 }
             }
 
-            news
+            newsList
         } catch (e: Exception) {
             Log.e("NewsRepo", "Error fetching news", e)
             emptyList()
@@ -148,7 +176,6 @@ class NewsRepository {
             sourceId = doc.getString("sourceId") ?: "",
             sourceName = doc.getString("sourceName") ?: "",
             sourceIcon = doc.getString("sourceIcon") ?: "",
-            // Legge esplicitamente i campi booleani con i nomi corretti
             isArchived = doc.getBoolean("isArchived") ?: false,
             isFavorite = doc.getBoolean("isFavorite") ?: false
         )
@@ -158,8 +185,7 @@ class NewsRepository {
         return try {
             val collection = getUserNewsCollection() ?: return emptyList()
             val snapshot = collection.get().await()
-            // Usiamo anche qui la mappatura manuale per coerenza, o toObjects se ci fidiamo solo delle categorie
-            // Per le categorie toObjects va bene perché usa fields standard, ma map è più sicuro
+
             val allNews = snapshot.documents.map { mapDocumentToNews(it) }
 
             val categoriesSet = mutableSetOf<String>()
