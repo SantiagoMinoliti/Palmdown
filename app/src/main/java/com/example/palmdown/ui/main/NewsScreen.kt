@@ -54,7 +54,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -132,6 +131,7 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
         list
     }
 
+    // Filter logic: Exclude archived news, handle search query, handle sorting (favorites first)
     val filteredNews by remember {
         derivedStateOf {
             val visible = newsList.filter { !it.isArchived }
@@ -383,7 +383,7 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                                     isSelected = selectedNewsIds.contains(news.id),
                                     onLongPressActivated = {
                                         if (!isSelectionMode) {
-                                            // Handle context menu inside NewsListItem
+                                            // Handle context menu logic inside NewsListItem
                                         } else {
                                             isSelectionMode = true
                                             selectedNewsIds = selectedNewsIds + news.id
@@ -446,6 +446,7 @@ fun NewsScreen(viewModel: NewsViewModel = viewModel()) {
                                 onClick = {
                                     scope.launch {
                                         val targetState = !allSelectedAreFavorites
+                                        // Update local list assumption or just trigger actions
                                         val itemsToUpdate = newsList.filter { it.id in selectedNewsIds }
                                         itemsToUpdate.forEach { news ->
                                             if (news.isFavorite != targetState) {
@@ -720,14 +721,10 @@ private fun NewsListItem(
     onSelectionToggle: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     var menuExpanded by remember { mutableStateOf(false) }
-    var pressOffset by remember { mutableStateOf(Offset.Zero) }
-    var fixedMenuOffset by remember { mutableStateOf<Offset?>(null) }
-
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -738,23 +735,20 @@ private fun NewsListItem(
     val cyanAccent = Color(0xFF00E5FF)
     val selectionPurple = Color(0xFF632F96)
     val textBlack = Color(0xFF1E1E1E)
-    val accentPurple = Color(0xFF632F96)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(alpha)
             .scale(scale)
-            .onGloballyPositioned { coords ->
-                if (fixedMenuOffset == null) pressOffset = coords.localToWindow(Offset.Zero)
-            }
             .animateContentSize()
             .then(
                 if (isSelectionMode) {
-                    Modifier.background(
-                        if (isSelected) Color(0xFFE8E0F2) else Color.Transparent,
-                        RoundedCornerShape(12.dp)
-                    )
+                    Modifier
+                        .background(
+                            if (isSelected) Color(0xFFE8E0F2) else Color.Transparent,
+                            RoundedCornerShape(12.dp)
+                        )
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { onSelectionToggle() }
                 } else {
@@ -767,14 +761,9 @@ private fun NewsListItem(
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
                         },
                         onLongClick = {
-                            if (!isSelectionMode) {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                fixedMenuOffset = pressOffset
-                                menuExpanded = true
-                                onLongPressActivated()
-                            } else {
-                                onSelectionToggle()
-                            }
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            menuExpanded = true
+                            onLongPressActivated()
                         }
                     )
                 }
@@ -895,15 +884,11 @@ private fun NewsListItem(
             }
         }
 
-        // Custom Context Menu (White Background, No preview)
-        fixedMenuOffset?.let { offset ->
+        // Custom Context Menu
+        if (menuExpanded && !isSelectionMode) {
             DropdownMenu(
                 expanded = menuExpanded,
-                onDismissRequest = {
-                    menuExpanded = false
-                    fixedMenuOffset = null
-                },
-                offset = DpOffset(x = with(density) { offset.x.toDp() }, y = with(density) { offset.y.toDp() }),
+                onDismissRequest = { menuExpanded = false },
                 modifier = Modifier
                     .background(Color.White)
                     .widthIn(min = 200.dp)
@@ -918,7 +903,6 @@ private fun NewsListItem(
                             text = { Text("Open in Browser", color = textBlack, fontSize = 16.sp) },
                             onClick = {
                                 menuExpanded = false
-                                fixedMenuOffset = null
                                 val finalUrl = if (news.url.startsWith("http")) news.url else "https://${news.url}"
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
                             },
@@ -928,7 +912,6 @@ private fun NewsListItem(
                             text = { Text("Copy Link", color = textBlack, fontSize = 16.sp) },
                             onClick = {
                                 menuExpanded = false
-                                fixedMenuOffset = null
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 val clip = android.content.ClipData.newPlainText("News Link", news.url)
                                 clipboard.setPrimaryClip(clip)
@@ -939,7 +922,6 @@ private fun NewsListItem(
                             text = { Text(if (news.isFavorite) "Unfavorite" else "Favorite", color = textBlack, fontSize = 16.sp) },
                             onClick = {
                                 menuExpanded = false
-                                fixedMenuOffset = null
                                 onToggleFavorite()
                             },
                             leadingIcon = {
@@ -955,7 +937,6 @@ private fun NewsListItem(
                             text = { Text("Share", color = textBlack, fontSize = 16.sp) },
                             onClick = {
                                 menuExpanded = false
-                                fixedMenuOffset = null
                                 val sendIntent = Intent().apply {
                                     action = Intent.ACTION_SEND
                                     putExtra(Intent.EXTRA_TEXT, "${news.title}\n\n${news.url}")
@@ -969,7 +950,6 @@ private fun NewsListItem(
                             text = { Text("Archive", color = textBlack, fontSize = 16.sp) },
                             onClick = {
                                 menuExpanded = false
-                                fixedMenuOffset = null
                                 onArchive()
                             },
                             leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null, tint = textBlack) }
@@ -978,7 +958,6 @@ private fun NewsListItem(
                             text = { Text("Delete", color = Color(0xFFFF453A), fontSize = 16.sp) },
                             onClick = {
                                 menuExpanded = false
-                                fixedMenuOffset = null
                                 onDelete()
                             },
                             leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF453A)) }

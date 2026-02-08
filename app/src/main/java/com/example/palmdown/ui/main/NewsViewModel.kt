@@ -67,20 +67,44 @@ class NewsViewModel(
 
     fun toggleFavorite(newsId: String) {
         viewModelScope.launch {
+            var newsToUpdate: News? = null
+
+            // Aggiorna lo stato locale
             _news.update { currentList ->
                 currentList.map {
-                    if (it.id == newsId) it.copy(isFavorite = !it.isFavorite) else it
+                    if (it.id == newsId) {
+                        val updated = it.copy(isFavorite = !it.isFavorite)
+                        newsToUpdate = updated
+                        updated
+                    } else it
                 }
+            }
+
+            // Salva su Firebase
+            newsToUpdate?.let {
+                repository.updateNews(it)
             }
         }
     }
 
     fun archiveNews(newsId: String) {
         viewModelScope.launch {
+            var newsToUpdate: News? = null
+
+            // Aggiorna lo stato locale
             _news.update { currentList ->
                 currentList.map {
-                    if (it.id == newsId) it.copy(isArchived = true) else it
+                    if (it.id == newsId) {
+                        val updated = it.copy(isArchived = true)
+                        newsToUpdate = updated
+                        updated
+                    } else it
                 }
+            }
+
+            // Salva su Firebase
+            newsToUpdate?.let {
+                repository.updateNews(it)
             }
         }
     }
@@ -90,6 +114,8 @@ class NewsViewModel(
             _news.update { currentList ->
                 currentList.filter { it.id != newsId }
             }
+            // Nota: Se in futuro vorrai cancellare anche da remoto,
+            // dovrai aggiungere un metodo deleteNews nel repository
         }
     }
 

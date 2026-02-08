@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.palmdown.model.News
 import com.example.palmdown.model.NewsFilter
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
@@ -58,13 +59,31 @@ class NewsRepository {
                 "videoUrl" to news.videoUrl,
                 "sourceId" to news.sourceId,
                 "sourceName" to news.sourceName,
-                "sourceIcon" to news.sourceIcon
+                "sourceIcon" to news.sourceIcon,
+                "isArchived" to news.isArchived,
+                "isFavorite" to news.isFavorite
             )
 
             docRef.set(payload).await()
             true
         } catch (e: Exception) {
             false
+        }
+    }
+
+    suspend fun updateNews(news: News) {
+        try {
+            val collection = getUserNewsCollection() ?: return
+            if (news.id.isBlank()) return
+
+            val updates = mapOf(
+                "isArchived" to news.isArchived,
+                "isFavorite" to news.isFavorite
+            )
+
+            collection.document(news.id).update(updates).await()
+        } catch (e: Exception) {
+            Log.e("NewsRepo", "Error updating news", e)
         }
     }
 
@@ -85,9 +104,12 @@ class NewsRepository {
                 "Filtering by category='${filter.category}'"
             )
 
-
             val snapshot = query.get().await()
-            var news = snapshot.toObjects(News::class.java)
+
+            // Mappatura manuale per garantire la corretta lettura dei campi booleani isFavorite/isArchived
+            var news = snapshot.documents.map { doc ->
+                mapDocumentToNews(doc)
+            }
 
             if (filter.query.isNotBlank()) {
                 val q = filter.query.lowercase(Locale.getDefault())
@@ -99,19 +121,50 @@ class NewsRepository {
 
             news
         } catch (e: Exception) {
+            Log.e("NewsRepo", "Error fetching news", e)
             emptyList()
         }
+    }
+
+    // Helper per mappare manualmente il documento Firestore all'oggetto News
+    private fun mapDocumentToNews(doc: DocumentSnapshot): News {
+        val keywords = (doc.get("keywords") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+        val creator = (doc.get("creator") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+        val categories = (doc.get("categories") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+
+        return News(
+            id = doc.id,
+            title = doc.getString("title") ?: "",
+            content = doc.getString("content") ?: "",
+            url = doc.getString("url") ?: "",
+            date = doc.getDate("date"),
+            country = doc.getString("country") ?: "",
+            fetchedAt = doc.getDate("fetchedAt"),
+            keywords = keywords,
+            creator = creator,
+            categories = categories,
+            imageUrl = doc.getString("imageUrl") ?: "",
+            videoUrl = doc.getString("videoUrl") ?: "",
+            sourceId = doc.getString("sourceId") ?: "",
+            sourceName = doc.getString("sourceName") ?: "",
+            sourceIcon = doc.getString("sourceIcon") ?: "",
+            // Legge esplicitamente i campi booleani con i nomi corretti
+            isArchived = doc.getBoolean("isArchived") ?: false,
+            isFavorite = doc.getBoolean("isFavorite") ?: false
+        )
     }
 
     suspend fun fetchAllCategories(): List<String> {
         return try {
             val collection = getUserNewsCollection() ?: return emptyList()
             val snapshot = collection.get().await()
-            val allNews = snapshot.toObjects(News::class.java)
+            // Usiamo anche qui la mappatura manuale per coerenza, o toObjects se ci fidiamo solo delle categorie
+            // Per le categorie toObjects va bene perché usa fields standard, ma map è più sicuro
+            val allNews = snapshot.documents.map { mapDocumentToNews(it) }
 
             val categoriesSet = mutableSetOf<String>()
             allNews.forEach { news ->
-                news.categories?.forEach { cat ->
+                news.categories.forEach { cat ->
                     if (cat.isNotBlank()) categoriesSet.add(cat)
                 }
             }
