@@ -730,7 +730,6 @@ private fun NewsListItem(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
 
-            // Selection Checkbox
             AnimatedVisibility(
                 visible = isSelectionMode,
                 enter = expandVertically() + fadeIn(),
@@ -748,7 +747,6 @@ private fun NewsListItem(
 
             Column(modifier = Modifier.weight(1f)) {
 
-                // Image
                 AnimatedVisibility(
                     visible = !isSelectionMode,
                     enter = expandVertically() + fadeIn(),
@@ -842,7 +840,6 @@ private fun NewsListItem(
             }
         }
 
-        // Custom Context Menu
         if (menuExpanded && !isSelectionMode) {
             DropdownMenu(
                 expanded = menuExpanded,

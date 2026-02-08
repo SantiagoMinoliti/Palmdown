@@ -40,10 +40,8 @@ class NewsRepository {
         return try {
             val digest = MessageDigest.getInstance("MD5")
             val hash = digest.digest(url.toByteArray(Charsets.UTF_8))
-            // Converte i byte in stringa esadecimale
             hash.joinToString("") { "%02x".format(it) }
         } catch (e: Exception) {
-            // Fallback in caso remoto di errore MD5 (usiamo l'hashcode pulito)
             url.hashCode().toString().replace("-", "")
         }
     }
@@ -54,13 +52,10 @@ class NewsRepository {
 
             if (news.url.isBlank()) return false
 
-            // 1. Generiamo l'ID basato sull'URL
             val deterministicId = generateIdFromUrl(news.url)
 
-            // 2. Puntiamo direttamente al documento specifico
             val docRef = collection.document(deterministicId)
 
-            // 3. Controlliamo se esiste ESATTAMENTE questo ID (più efficiente della query whereEqualTo)
             val snapshot = docRef.get().await()
 
             if (snapshot.exists()) {
@@ -68,9 +63,8 @@ class NewsRepository {
                 return false
             }
 
-            // 4. Salviamo usando l'ID deterministico
             val payload = hashMapOf(
-                "id" to deterministicId, // L'ID nel documento corrisponde alla chiave
+                "id" to deterministicId,
                 "title" to news.title,
                 "content" to news.content,
                 "url" to news.url,
@@ -101,8 +95,6 @@ class NewsRepository {
         try {
             val collection = getUserNewsCollection() ?: return
 
-            // Se l'oggetto News ha già un ID (perché letto dal DB), usiamo quello.
-            // Se è vuoto (caso raro in update), ricalcoliamo l'hash dall'URL per sicurezza.
             val docId = if (news.id.isNotBlank()) news.id else generateIdFromUrl(news.url)
 
             val updates = mapOf(
@@ -154,7 +146,6 @@ class NewsRepository {
         }
     }
 
-    // Helper per mappare manualmente il documento Firestore all'oggetto News
     private fun mapDocumentToNews(doc: DocumentSnapshot): News {
         val keywords = (doc.get("keywords") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
         val creator = (doc.get("creator") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
