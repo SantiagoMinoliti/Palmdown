@@ -33,8 +33,6 @@ class NewsRepository {
 
     /**
      * Genera un hash MD5 dall'URL per usarlo come ID del documento.
-     * Questo garantisce che lo stesso URL produca sempre lo stesso ID,
-     * prevenendo duplicati a livello strutturale.
      */
     private fun generateIdFromUrl(url: String): String {
         return try {
@@ -45,23 +43,16 @@ class NewsRepository {
             url.hashCode().toString().replace("-", "")
         }
     }
-
     suspend fun saveNewsIfNotExists(news: News): Boolean {
         return try {
             val collection = getUserNewsCollection() ?: return false
-
             if (news.url.isBlank()) return false
 
             val deterministicId = generateIdFromUrl(news.url)
-
             val docRef = collection.document(deterministicId)
-
             val snapshot = docRef.get().await()
 
-            if (snapshot.exists()) {
-                Log.d("NewsRepo", "News già presente: ${news.title}")
-                return false
-            }
+            if (snapshot.exists()) return false
 
             val payload = hashMapOf(
                 "id" to deterministicId,
@@ -94,14 +85,11 @@ class NewsRepository {
     suspend fun updateNews(news: News) {
         try {
             val collection = getUserNewsCollection() ?: return
-
             val docId = if (news.id.isNotBlank()) news.id else generateIdFromUrl(news.url)
-
             val updates = mapOf(
                 "isArchived" to news.isArchived,
                 "isFavorite" to news.isFavorite
             )
-
             collection.document(docId).update(updates).await()
         } catch (e: Exception) {
             Log.e("NewsRepo", "Error updating news", e)
@@ -115,21 +103,11 @@ class NewsRepository {
             var query: Query = collection.orderBy("fetchedAt", Query.Direction.DESCENDING)
 
             if (filter.category.isNotBlank() && filter.category.lowercase() != "all") {
-                query = query.whereArrayContains(
-                    "categories",
-                    filter.category.lowercase(Locale.getDefault())
-                )
+                query = query.whereArrayContains("categories", filter.category.lowercase(Locale.getDefault()))
             }
-            Log.d(
-                "NewsRepo",
-                "Filtering by category='${filter.category}'"
-            )
 
             val snapshot = query.get().await()
-
-            var newsList = snapshot.documents.map { doc ->
-                mapDocumentToNews(doc)
-            }
+            var newsList = snapshot.documents.map { mapDocumentToNews(it) }
 
             if (filter.query.isNotBlank()) {
                 val q = filter.query.lowercase(Locale.getDefault())
@@ -138,13 +116,61 @@ class NewsRepository {
                             it.content.lowercase(Locale.getDefault()).contains(q)
                 }
             }
-
             newsList
         } catch (e: Exception) {
             Log.e("NewsRepo", "Error fetching news", e)
             emptyList()
         }
     }
+
+    // --- METODI PER IL COLLEGAMENTO NEWS NELL'EDITOR ---
+
+    suspend fun linkNewsToNote(noteId: String, news: News) {
+        val userRoot = getUserRoot() ?: return
+        try {
+            // Salva una copia della news nella sotto-collezione della nota
+            userRoot.collection("notes")
+                .document(noteId)
+                .collection("linkedNews")
+                .document(news.id)
+                .set(news) // Salviamo l'intero oggetto News per visualizzarlo offline nell'editor
+                .await()
+        } catch (e: Exception) {
+            Log.e("NewsRepo", "Error linking news to note", e)
+        }
+    }
+
+    suspend fun unlinkNewsFromNote(noteId: String, newsId: String) {
+        val userRoot = getUserRoot() ?: return
+        try {
+            userRoot.collection("notes")
+                .document(noteId)
+                .collection("linkedNews")
+                .document(newsId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            Log.e("NewsRepo", "Error unlinking news", e)
+        }
+    }
+
+    suspend fun getLinkedNewsForNote(noteId: String): List<News> {
+        val userRoot = getUserRoot() ?: return emptyList()
+        return try {
+            val snapshot = userRoot.collection("notes")
+                .document(noteId)
+                .collection("linkedNews")
+                .get()
+                .await()
+
+            snapshot.documents.map { mapDocumentToNews(it) }
+        } catch (e: Exception) {
+            Log.e("NewsRepo", "Error fetching linked news", e)
+            emptyList()
+        }
+    }
+
+    // --- HELPER MAPPING ---
 
     private fun mapDocumentToNews(doc: DocumentSnapshot): News {
         val keywords = (doc.get("keywords") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
@@ -176,20 +202,11 @@ class NewsRepository {
         return try {
             val collection = getUserNewsCollection() ?: return emptyList()
             val snapshot = collection.get().await()
-
             val allNews = snapshot.documents.map { mapDocumentToNews(it) }
-
             val categoriesSet = mutableSetOf<String>()
-            allNews.forEach { news ->
-                news.categories.forEach { cat ->
-                    if (cat.isNotBlank()) categoriesSet.add(cat)
-                }
-            }
-
+            allNews.forEach { news -> news.categories.forEach { if (it.isNotBlank()) categoriesSet.add(it) } }
             categoriesSet.toList().sorted()
-        } catch (e: Exception) {
-            emptyList()
-        }
+        } catch (e: Exception) { emptyList() }
     }
 
     suspend fun updateFilters(filters: NewsFilter) {

@@ -40,6 +40,16 @@ class NotesRepository {
         }
     }
 
+    suspend fun getNoteById(noteId: String): Notes? {
+        return try {
+            val collection = getUserNotesCollection() ?: return null
+            val snapshot = collection.document(noteId).get().await()
+            snapshot.toObject(Notes::class.java)?.copy(id = snapshot.id)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     suspend fun deleteNote(noteId: String): Boolean {
         return try {
             getUserNotesCollection()?.document(noteId)?.delete()?.await()
