@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -341,14 +342,18 @@ fun EditorScreen(
                                         containerColor = Color.Transparent,
                                         tonalElevation = 0.dp,
                                         shape = RoundedCornerShape(16.dp),
-                                        shadowElevation = 0.dp
+                                        shadowElevation = 0.dp // We handle shadow in the Surface
                                     ) {
                                         Surface(
                                             shape = RoundedCornerShape(16.dp),
                                             color = menuBgColor,
-                                            shadowElevation = 8.dp,
+                                            // Fix 1: Add shadow elevation for light mode
+                                            shadowElevation = if (isLightMode) 12.dp else 0.dp,
                                             border = BorderStroke(0.5.dp, menuBorderColor),
-                                            modifier = Modifier.widthIn(min = 220.dp)
+                                            modifier = Modifier
+                                                .widthIn(min = 220.dp)
+                                                // Fix 2: Clip the surface so children don't show hard corners behind the radius
+                                                .clip(RoundedCornerShape(16.dp))
                                         ) {
                                             Column {
                                                 MenuOptionItem(
@@ -356,7 +361,8 @@ fun EditorScreen(
                                                     icon = if (isPinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin,
                                                     textColor = textColor,
                                                     iconColor = accentColor,
-                                                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                                                    // Fix 3: Use RectangleShape, parent clips it.
+                                                    shape = RectangleShape,
                                                     onClick = {
                                                         isPinned = !isPinned
                                                         showMenu = false
@@ -370,7 +376,7 @@ fun EditorScreen(
                                                     icon = if (isArchived) Icons.Rounded.Unarchive else Icons.Rounded.Archive,
                                                     textColor = textColor,
                                                     iconColor = accentColor,
-                                                    shape = RoundedCornerShape(0.dp),
+                                                    shape = RectangleShape,
                                                     onClick = {
                                                         isArchived = !isArchived
                                                         showMenu = false
@@ -384,7 +390,7 @@ fun EditorScreen(
                                                     icon = Icons.Rounded.Search,
                                                     textColor = textColor,
                                                     iconColor = accentColor,
-                                                    shape = RoundedCornerShape(0.dp),
+                                                    shape = RectangleShape,
                                                     onClick = {
                                                         showMenu = false
                                                         showFindBar = true
@@ -398,7 +404,7 @@ fun EditorScreen(
                                                     icon = if (isLightMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
                                                     textColor = textColor,
                                                     iconColor = accentColor,
-                                                    shape = RoundedCornerShape(0.dp),
+                                                    shape = RectangleShape,
                                                     onClick = {
                                                         isLightMode = !isLightMode
                                                         showMenu = false
@@ -412,7 +418,7 @@ fun EditorScreen(
                                                     icon = Icons.Rounded.Delete,
                                                     textColor = destructiveRed,
                                                     iconColor = destructiveRed,
-                                                    shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+                                                    shape = RectangleShape,
                                                     onClick = {
                                                         showMenu = false
                                                         deleteNote()
