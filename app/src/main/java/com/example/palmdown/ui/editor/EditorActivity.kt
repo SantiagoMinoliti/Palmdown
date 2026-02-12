@@ -342,17 +342,15 @@ fun EditorScreen(
                                         containerColor = Color.Transparent,
                                         tonalElevation = 0.dp,
                                         shape = RoundedCornerShape(16.dp),
-                                        shadowElevation = 0.dp // We handle shadow in the Surface
+                                        shadowElevation = 0.dp
                                     ) {
                                         Surface(
                                             shape = RoundedCornerShape(16.dp),
                                             color = menuBgColor,
-                                            // Fix 1: Add shadow elevation for light mode
                                             shadowElevation = if (isLightMode) 12.dp else 0.dp,
                                             border = BorderStroke(0.5.dp, menuBorderColor),
                                             modifier = Modifier
                                                 .widthIn(min = 220.dp)
-                                                // Fix 2: Clip the surface so children don't show hard corners behind the radius
                                                 .clip(RoundedCornerShape(16.dp))
                                         ) {
                                             Column {
@@ -361,7 +359,6 @@ fun EditorScreen(
                                                     icon = if (isPinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin,
                                                     textColor = textColor,
                                                     iconColor = accentColor,
-                                                    // Fix 3: Use RectangleShape, parent clips it.
                                                     shape = RectangleShape,
                                                     onClick = {
                                                         isPinned = !isPinned
@@ -719,6 +716,14 @@ fun EditorScreen(
                                             document.addEventListener('selectionchange', checkStyles);
                                             document.getElementById('content-area').addEventListener('click', checkStyles);
                                             document.getElementById('content-area').addEventListener('keyup', checkStyles);
+                                            
+                                            document.getElementById('title-input').addEventListener('keydown', function(e) {
+                                                if (e.key === 'Enter' || e.keyCode === 13) {
+                                                    e.preventDefault();
+                                                    document.getElementById('content-area').focus();
+                                                }
+                                            });
+
                                             document.getElementById('content-area').addEventListener('input', function(e) {
                                                 var selection = window.getSelection();
                                                 if (selection.rangeCount > 0) {
