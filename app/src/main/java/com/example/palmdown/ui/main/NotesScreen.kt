@@ -1,6 +1,8 @@
 package com.example.palmdown.ui.notes
 
 import android.content.Intent
+import android.webkit.WebView
+import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -77,6 +80,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.example.palmdown.model.Notes
 import com.example.palmdown.repository.NotesRepository
@@ -713,6 +717,61 @@ fun AppleStyleNoteCard(
 
     val finalCardColor = if (isSelected) Color(0xFF38383A) else cardColor
 
+    val titleHex = String.format("#%06X", (0xFFFFFF and textColor.toArgb()))
+    val contentHex = String.format("#%06X", (0xFFFFFF and dateColor.toArgb()))
+
+    val titleHtml = remember(note.title, textColor) {
+        """
+        <html>
+        <head>
+        <style>
+            body { 
+                color: $titleHex; 
+                background-color: transparent; 
+                margin: 0; 
+                padding: 0; 
+                font-family: sans-serif; 
+                font-size: 17px; 
+                font-weight: bold;
+                white-space: nowrap; 
+                overflow: hidden; 
+                text-overflow: ellipsis;
+                display: block;
+                width: 100vw;
+            }
+        </style>
+        </head>
+        <body>${if (note.title.isBlank()) "New Entry" else note.title}</body>
+        </html>
+        """.trimIndent()
+    }
+
+    val contentHtml = remember(note.content, dateColor) {
+        """
+        <html>
+        <head>
+        <style>
+            body { 
+                color: $contentHex; 
+                background-color: transparent; 
+                margin: 0; 
+                padding: 0; 
+                font-family: sans-serif; 
+                font-size: 14px;
+                white-space: nowrap; 
+                overflow: hidden; 
+                text-overflow: ellipsis;
+                opacity: 0.6;
+                display: block;
+                width: 100vw;
+            }
+        </style>
+        </head>
+        <body>${if (note.content.isBlank()) "No additional text" else note.content.replace("\n", " ")}</body>
+        </html>
+        """.trimIndent()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -727,29 +786,8 @@ fun AppleStyleNoteCard(
                 color = if (isSelected) accentColor else Color.Transparent,
                 shape = RoundedCornerShape(12.dp)
             )
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = LocalIndication.current,
-                onClick = onClick,
-                onLongClick = {
-                    isPressed = false
-                    onLongClick(itemBounds)
-                }
-            )
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull()
-                        if (change != null && change.pressed) {
-                            isPressed = true
-                        } else if (change != null && !change.pressed) {
-                            isPressed = false
-                        }
-                    }
-                }
-            }
     ) {
+        // Content Layer (WebViews are here, but won't catch clicks)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -773,15 +811,28 @@ fun AppleStyleNoteCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
-                    Text(
-                        text = if (note.title.isBlank()) "New Entry" else note.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        color = textColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                    AndroidView(
+                        factory = { context ->
+                            WebView(context).apply {
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.WRAP_CONTENT
+                                )
+                                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                settings.javaScriptEnabled = false
+                                isVerticalScrollBarEnabled = false
+                                isHorizontalScrollBarEnabled = false
+                                setOnTouchListener { _, _ -> false }
+                                isFocusable = false
+                                isClickable = false
+                            }
+                        },
+                        update = { webView ->
+                            webView.loadDataWithBaseURL(null, titleHtml, "text/html", "utf-8", null)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(24.dp)
                     )
 
                     if (note.pinned) {
@@ -805,17 +856,60 @@ fun AppleStyleNoteCard(
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(end = 10.dp)
                     )
-                    Text(
-                        text = if (note.content.isBlank()) "No additional text" else note.content.replace("\n", " "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = dateColor.copy(alpha = 0.6f),
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                    AndroidView(
+                        factory = { context ->
+                            WebView(context).apply {
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.WRAP_CONTENT
+                                )
+                                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                settings.javaScriptEnabled = false
+                                isVerticalScrollBarEnabled = false
+                                isHorizontalScrollBarEnabled = false
+                                setOnTouchListener { _, _ -> false }
+                                isFocusable = false
+                                isClickable = false
+                            }
+                        },
+                        update = { webView ->
+                            webView.loadDataWithBaseURL(null, contentHtml, "text/html", "utf-8", null)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(20.dp)
                     )
                 }
             }
         }
+
+        // Overlay Layer (Invisible, but captures all interactions)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = onClick,
+                    onLongClick = {
+                        isPressed = false
+                        onLongClick(itemBounds)
+                    }
+                )
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull()
+                            if (change != null && change.pressed) {
+                                isPressed = true
+                            } else if (change != null && !change.pressed) {
+                                isPressed = false
+                            }
+                        }
+                    }
+                }
+        )
     }
 }
 
@@ -906,9 +1000,9 @@ fun PreviewOverlay(
                     .height(with(density) { currentHeightPx.toDp() })
                     .clip(RoundedCornerShape(14.dp))
                     .background(cardColor)
-                    .clickable { startDismiss { onEdit() } }
                     .padding(20.dp)
             ) {
+                // Content with WebView
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -943,18 +1037,51 @@ fun PreviewOverlay(
                     val contentAlpha = animProgress.value.coerceIn(0f, 1f)
                     if (contentAlpha > 0.05f) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = state.note.content,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = textColor.copy(alpha = 0.9f),
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 22.sp,
+
+                        val hexColor = String.format("#%06X", (0xFFFFFF and textColor.toArgb()))
+                        val htmlContent = """
+                            <html>
+                            <head>
+                            <style>
+                                body { color: $hexColor; background-color: transparent; margin: 0; padding: 0; font-family: sans-serif; font-size: 16px; }
+                                a { color: #632F96; }
+                            </style>
+                            </head>
+                            <body>
+                                ${state.note.content}
+                            </body>
+                            </html>
+                        """.trimIndent()
+
+                        AndroidView(
+                            factory = { context ->
+                                WebView(context).apply {
+                                    layoutParams = ViewGroup.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                    settings.javaScriptEnabled = false
+                                    settings.loadWithOverviewMode = true
+                                }
+                            },
+                            update = { webView ->
+                                webView.loadDataWithBaseURL(null, htmlContent, "text/html", "utf-8", null)
+                            },
                             modifier = Modifier
                                 .alpha(contentAlpha)
                                 .weight(1f)
+                                .fillMaxWidth()
                         )
                     }
                 }
+
+                // Overlay for click capture on Preview
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { startDismiss { onEdit() } }
+                )
             }
 
             Spacer(modifier = Modifier.height(spacerHeight))
