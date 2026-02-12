@@ -686,7 +686,7 @@ fun EditorScreen(
                                     <body>
                                         <div id="meta-date" contenteditable="false">$dateStr</div>
                                         <div id="title-input" contenteditable="true" placeholder="Title">$initialTitle</div>
-                                        <div id="content-area" contenteditable="true" placeholder="Start typing...">$initialContent</div>
+                                        <div id="content-area" contenteditable="true" placeholder="Start typing..." autocapitalize="none">$initialContent</div>
                                         
                                         <div id="trash-can">
                                             <svg id="trash-icon" viewBox="0 0 24 24">
@@ -857,16 +857,39 @@ fun EditorScreen(
 
                                             function insertNews(title, icon, url) {
                                                 const cleanTitle = title.length > 25 ? title.substring(0, 25) + '...' : title;
-                                                const html = `<span class="news-chip" contenteditable="false" data-url="`+url+`"><img src="`+icon+`" onerror="this.style.display='none'"/>` + cleanTitle + `</span>&nbsp;`;
+                                                
+                                                const span = document.createElement('span');
+                                                span.className = 'news-chip';
+                                                span.contentEditable = 'false';
+                                                span.dataset.url = url;
+                                                
+                                                const img = document.createElement('img');
+                                                img.src = icon;
+                                                img.onerror = function() { this.style.display='none'; };
+                                                
+                                                const textNode = document.createTextNode(cleanTitle);
+                                                
+                                                span.appendChild(img);
+                                                span.appendChild(textNode);
+                                                
+                                                const space = document.createTextNode('\u00A0');
                                                 
                                                 const contentArea = document.getElementById('content-area');
                                                 contentArea.focus();
                                                 
                                                 const selection = window.getSelection();
                                                 if (selection.rangeCount > 0 && contentArea.contains(selection.anchorNode)) {
-                                                    document.execCommand('insertHTML', false, html);
+                                                    const range = selection.getRangeAt(0);
+                                                    range.deleteContents();
+                                                    range.insertNode(space);
+                                                    range.insertNode(span);
+                                                    range.setStartAfter(space);
+                                                    range.setEndAfter(space);
+                                                    selection.removeAllRanges();
+                                                    selection.addRange(range);
                                                 } else {
-                                                    contentArea.insertAdjacentHTML('beforeend', html);
+                                                    contentArea.appendChild(span);
+                                                    contentArea.appendChild(space);
                                                 }
                                                 
                                                 setTimeout(initChips, 50);
