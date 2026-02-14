@@ -765,6 +765,7 @@ fun AppleStyleNoteCard(
                 display: block;
                 width: 100vw;
             }
+            .news-chip { display: none; }
         </style>
         </head>
         <body>${if (note.content.isBlank()) "No additional text" else note.content.replace("\n", " ")}</body>
@@ -787,7 +788,6 @@ fun AppleStyleNoteCard(
                 shape = RoundedCornerShape(12.dp)
             )
     ) {
-        // Content Layer (WebViews are here, but won't catch clicks)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -883,7 +883,6 @@ fun AppleStyleNoteCard(
             }
         }
 
-        // Overlay Layer (Invisible, but captures all interactions)
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -1002,7 +1001,6 @@ fun PreviewOverlay(
                     .background(cardColor)
                     .padding(20.dp)
             ) {
-                // Content with WebView
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1043,8 +1041,37 @@ fun PreviewOverlay(
                             <html>
                             <head>
                             <style>
+                                :root {
+                                    --link-color: #632F96;
+                                    --chip-bg: #2C2C2E;
+                                    --chip-border: #333333;
+                                    --chip-text: #EEEEEE;
+                                }
                                 body { color: $hexColor; background-color: transparent; margin: 0; padding: 0; font-family: sans-serif; font-size: 16px; }
-                                a { color: #632F96; }
+                                a { color: var(--link-color); }
+                                
+                                .news-chip {
+                                    display: inline-flex;
+                                    align-items: center;
+                                    background-color: var(--chip-bg);
+                                    border: 0.5px solid var(--chip-border);
+                                    border-radius: 50px;
+                                    padding: 2px 10px 2px 4px;
+                                    margin: 2px;
+                                    vertical-align: middle;
+                                    font-size: 13px;
+                                    color: var(--chip-text);
+                                    white-space: nowrap;
+                                    height: 24px;
+                                }
+                                .news-chip img {
+                                    width: 18px;
+                                    height: 18px;
+                                    border-radius: 50%;
+                                    margin-right: 6px;
+                                    object-fit: cover;
+                                    background-color: #333;
+                                }
                             </style>
                             </head>
                             <body>
@@ -1076,7 +1103,6 @@ fun PreviewOverlay(
                     }
                 }
 
-                // Overlay for click capture on Preview
                 Box(
                     modifier = Modifier
                         .matchParentSize()
