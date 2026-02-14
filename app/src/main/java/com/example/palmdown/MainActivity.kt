@@ -30,13 +30,12 @@ import com.example.palmdown.ui.main.SettingsScreen
 import com.example.palmdown.ui.notes.NotesScreen
 import com.example.palmdown.ui.welcome.WelcomeActivity
 import com.example.palmdown.worker.NewsWorkerScheduler
-import com.example.palmdown.worker.MockWorkerScheduler
 import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        MockWorkerScheduler.scheduleDailyNews(this)
+        NewsWorkerScheduler.scheduleDailyNews(this)
 
         setContent {
             MaterialTheme(
