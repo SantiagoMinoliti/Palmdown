@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
@@ -21,11 +22,15 @@ import com.example.palmdown.ui.main.NewsScreenTracker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.net.URL
+import java.net.UnknownHostException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -39,11 +44,13 @@ class NewsBackgroundWorker(
     private val settingsRepository = SettingsRepository()
     private val newsRepository = NewsRepository()
 
-    /**
-     * Esegue il lavoro in background.
-     * Utilizziamo withContext(Dispatchers.IO) per spostare l'esecuzione su un thread
-     * ottimizzato per operazioni di I/O (Rete, Database), evitando di bloccare.
-     */
+    companion object {
+        const val KEY_FORCE_REFRESH = "force_refresh"
+        private const val SAFE_BROWSING_API_KEY = "AIzaSyAfZHPatJzojUkwuV7XnoIYwM9HO8cLghA"
+        private const val SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=$SAFE_BROWSING_API_KEY"
+        private const val TAG = "PalmDownWorker"
+    }
+
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val forceRefresh = inputData.getBoolean(KEY_FORCE_REFRESH, false)
 
@@ -59,18 +66,15 @@ class NewsBackgroundWorker(
             if (languageParam.isNotBlank()) append("&language=$languageParam")
         }
 
-        // Configurazione aggressiva del client con timeout più lunghi
         val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
 
         var responseBody: String? = null
         var fetchSuccessful = false
 
-        // *** STRATEGIA DI RETRY INTERNO ***
-        // Proviamo a scaricare i dati fino a 3 volte prima di arrendersi al WorkManager.
         val maxRetries = 3
         for (attempt in 1..maxRetries) {
             try {
@@ -80,12 +84,14 @@ class NewsBackgroundWorker(
                 if (response.isSuccessful) {
                     responseBody = response.body?.string()
                     fetchSuccessful = true
-                    break // Successo! Usciamo dal loop di retry
+                    break
                 } else {
                     response.close()
                 }
+            } catch (e: UnknownHostException) {
+                Log.e(TAG, "DNS Error: Impossibile risolvere l'host. Se sei su emulatore, prova 'Wipe Data'. Error: ${e.message}")
             } catch (e: IOException) {
-                e.printStackTrace()
+                Log.e(TAG, "Errore di rete generico: ${e.message}")
             }
 
             if (attempt < maxRetries) {
@@ -106,19 +112,33 @@ class NewsBackgroundWorker(
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val newNews = mutableListOf<News>()
 
+        // Usiamo un Set per tracciare i titoli già visti in questo batch
+        val seenTitles = mutableSetOf<String>()
+
         for (i in 0 until results.length()) {
             val item = results.getJSONObject(i)
+            val title = item.optString("title")
+
+            // Controllo duplicati nel batch corrente (stessa notizia da fonti diverse)
+            if (title.isNotBlank() && seenTitles.contains(title)) {
+                Log.d(TAG, "News scartata (Titolo duplicato nel batch): $title")
+                continue
+            }
+            seenTitles.add(title)
 
             val pubDate = item.optString("pubDate")
-
             val parsedPubDate = runCatching {
                 if (pubDate.isNotBlank()) dateFormat.parse(pubDate) else null
             }.getOrNull()
 
+            val newsUrl = item.optString("link")
+
+            if (newsUrl.isBlank()) continue
+
             val news = News(
-                title = item.optString("title"),
+                title = title,
                 content = item.optString("description"),
-                url = item.optString("link"),
+                url = newsUrl,
                 date = parsedPubDate,
                 fetchedAt = Date(),
                 country = item.optJSONArray("country")?.toString() ?: "",
@@ -138,8 +158,23 @@ class NewsBackgroundWorker(
                 sourceIcon = item.optString("source_icon")
             )
 
+            // 1. Controllo validità link (HEAD/GET)
+            if (!checkUrlHead(client, newsUrl)) {
+                Log.w(TAG, "News scartata (Link non valido): $newsUrl")
+                continue
+            }
+
+            // 2. Controllo Google Safe Browsing
+            if (!checkSafeBrowsing(client, newsUrl)) {
+                Log.w(TAG, "News scartata (Sito non sicuro): $newsUrl")
+                continue
+            }
+
             if (newsRepository.saveNewsIfNotExists(news)) {
                 newNews.add(news)
+                Log.d(TAG, "News salvata: $title")
+            } else {
+                Log.d(TAG, "News già presente nel DB: $title")
             }
         }
 
@@ -148,6 +183,75 @@ class NewsBackgroundWorker(
         }
 
         return@withContext Result.success()
+    }
+
+    private fun checkUrlHead(client: OkHttpClient, url: String): Boolean {
+        return try {
+            var request = Request.Builder()
+                .url(url)
+                .head()
+                .build()
+
+            var response = client.newCall(request).execute()
+
+            if (response.code == 405) {
+                response.close()
+                request = Request.Builder()
+                    .url(url)
+                    .get()
+                    .build()
+                response = client.newCall(request).execute()
+            }
+
+            val isSuccess = response.isSuccessful
+            response.close()
+            isSuccess
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun checkSafeBrowsing(client: OkHttpClient, url: String): Boolean {
+        return try {
+            val jsonBody = JSONObject().apply {
+                put("client", JSONObject().apply {
+                    put("clientId", "palmdown-android")
+                    put("clientVersion", "1.0.0")
+                })
+                put("threatInfo", JSONObject().apply {
+                    put("threatTypes", JSONArray().apply {
+                        put("MALWARE")
+                        put("SOCIAL_ENGINEERING")
+                        put("UNWANTED_SOFTWARE")
+                        put("POTENTIALLY_HARMFUL_APPLICATION")
+                    })
+                    put("platformTypes", JSONArray().put("ANDROID"))
+                    put("threatEntryTypes", JSONArray().put("URL"))
+                    put("threatEntries", JSONArray().put(JSONObject().put("url", url)))
+                })
+            }
+
+            val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
+            val request = Request.Builder()
+                .url(SAFE_BROWSING_URL)
+                .post(requestBody)
+                .build()
+
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                response.close()
+                return false
+            }
+
+            val responseString = response.body?.string() ?: "{}"
+            response.close()
+
+            val jsonResponse = JSONObject(responseString)
+            !jsonResponse.has("matches")
+        } catch (e: Exception) {
+            Log.e(TAG, "Errore Safe Browsing: ${e.message}")
+            false
+        }
     }
 
     private fun showNotification(news: News) {
@@ -183,45 +287,31 @@ class NewsBackgroundWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Logica per l'icona grande (Large Icon) - Questa accetta i colori!
         var largeIcon: android.graphics.Bitmap? = null
         if (!news.sourceIcon.isNullOrBlank()) {
             try {
-                // Proviamo a scaricare l'icona della fonte
                 val url = URL(news.sourceIcon)
                 largeIcon = BitmapFactory.decodeStream(url.openStream())
             } catch (e: Exception) {
-                e.printStackTrace()
+                // Ignora errori caricamento immagine
             }
         }
 
-        // Se l'icona online fallisce (spesso sono SVG non supportati), usiamo l'icona dell'app come fallback.
-        // BitmapFactory.decodeResource assicura che venga caricata come immagine, non come drawable xml.
         if (largeIcon == null) {
             largeIcon = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
         }
 
         val notification = NotificationCompat.Builder(context, channelId)
-            // SmallIcon: DEVE essere monocromatica/trasparente per Android moderno.
-            // Se metti ic_launcher qui, Android la trasforma in un cerchio grigio/blu.
-            // Usiamo l'icona di notifica standard che avevi.
             .setSmallIcon(R.drawable.ic_notifications_black_24dp)
-
-            // LargeIcon: Qui va l'immagine a colori (Fonte o App Icon)
             .setLargeIcon(largeIcon)
-
             .setContentTitle(news.title)
             .setContentText(news.content.take(120))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(news.content)) // Espande il testo se lungo
+            .setStyle(NotificationCompat.BigTextStyle().bigText(news.content))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(System.currentTimeMillis().toInt(), notification)
-    }
-
-    companion object {
-        const val KEY_FORCE_REFRESH = "force_refresh"
     }
 }
