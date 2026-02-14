@@ -1,17 +1,25 @@
 package com.example.palmdown.ui.editor
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.view.HapticFeedbackConstants
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -55,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
 import coil.compose.rememberAsyncImagePainter
 import com.example.palmdown.model.News
 import com.example.palmdown.model.Notes
@@ -128,6 +137,93 @@ fun EditorScreen(
     var isBoldActive by remember { mutableStateOf(false) }
     var isItalicActive by remember { mutableStateOf(false) }
     var isUnderlineActive by remember { mutableStateOf(false) }
+
+    // --- Voice Logic ---
+    var isListening by remember { mutableStateOf(false) }
+    val speechRecognizer = remember { SpeechRecognizer.createSpeechRecognizer(context) }
+
+    val voiceIntent = remember {
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val listener = object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() { isListening = true }
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() { isListening = false }
+
+            override fun onError(error: Int) {
+                isListening = false
+                // Silent fail or minimal toast if needed
+            }
+
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val text = matches[0]
+                    // Insert text at cursor position using insertText command (safer than innerHTML)
+                    val safeText = text.replace("'", "\\'").replace("\"", "\\\"")
+                    webViewRef?.evaluateJavascript(
+                        "document.execCommand('insertText', false, '$safeText ')",
+                        null
+                    )
+                }
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                // Optional: Implement real-time preview if desired
+            }
+
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        }
+
+        speechRecognizer.setRecognitionListener(listener)
+
+        onDispose {
+            speechRecognizer.destroy()
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                try {
+                    speechRecognizer.startListening(voiceIntent)
+                    isListening = true
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Voice recognition unavailable", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, "Microphone permission required", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+    fun toggleVoice() {
+        if (isListening) {
+            speechRecognizer.stopListening()
+            isListening = false
+        } else {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    speechRecognizer.startListening(voiceIntent)
+                    isListening = true
+                } catch (e: Exception) {
+                    isListening = false
+                }
+            } else {
+                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+    // -------------------
 
     val bgDark = Color(0xFF121212)
     val cardDark = Color(0xFF1C1C1E)
@@ -928,6 +1024,8 @@ fun EditorScreen(
                     },
                     onLink = { showLinkDialog = true },
                     onNews = { showNewsPicker = true },
+                    onVoice = { toggleVoice() },
+                    isListening = isListening,
                     isLightMode = isLightMode,
                     accentColor = accentColor,
                     isBoldActive = isBoldActive,
@@ -993,6 +1091,8 @@ fun RichToolbar(
     onBullet: () -> Unit,
     onLink: () -> Unit,
     onNews: () -> Unit,
+    onVoice: () -> Unit,
+    isListening: Boolean,
     isLightMode: Boolean,
     accentColor: Color,
     isBoldActive: Boolean = false,
@@ -1015,6 +1115,16 @@ fun RichToolbar(
             ToolbarBtn(Icons.Outlined.FormatItalic, onItalic, isLightMode, isActive = isItalicActive, activeColor = accentColor)
             ToolbarBtn(Icons.Outlined.FormatUnderlined, onUnderline, isLightMode, isActive = isUnderlineActive, activeColor = accentColor)
             ToolbarBtn(Icons.Outlined.FormatListBulleted, onBullet, isLightMode)
+
+            Box(Modifier.width(1.dp).height(20.dp).background(if (isLightMode) Color.LightGray else Color(0xFF333333)))
+
+            ToolbarBtn(
+                icon = if (isListening) Icons.Filled.Mic else Icons.Outlined.Mic,
+                onClick = onVoice,
+                isLightMode = isLightMode,
+                isActive = isListening,
+                activeColor = Color.Red
+            )
 
             Box(Modifier.width(1.dp).height(20.dp).background(if (isLightMode) Color.LightGray else Color(0xFF333333)))
 
